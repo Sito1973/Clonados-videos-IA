@@ -67,6 +67,12 @@ class HostedTests(unittest.TestCase):
   reply=self.client.post('/jobs',files={'video':('clip.mp4',b'video','video/mp4')},data={'mode':'depth'})
   self.assertEqual(reply.status_code,400);self.assertIn('REPLICATE_API_TOKEN',reply.json()['detail'])
 
+ def test_provider_rejection_reaches_the_ui(self):
+  self.login();(self.job/'audio-manifest.json').write_text('{}')
+  with patch('mask_review.require_approved'),patch('seedance_bridge.submit',side_effect=ValueError('kie.ai rejected the task (422): reference rejected')):
+   reply=self.client.post(f'/jobs/{self.job.name}/seedance',data={'prompt':'Replace'},files={'sirio':('ref.png',b'image','image/png')})
+  self.assertEqual(reply.status_code,422);self.assertIn('reference rejected',reply.json()['detail'])
+
  def test_launch_refuses_public_bind_without_password(self):
   env={**os.environ,'APP_HOST':'0.0.0.0','APP_PASSWORD':''}
   result=subprocess.run([sys.executable,'launch.py'],cwd=Path(server.__file__).parent,env=env,capture_output=True,text=True,timeout=60)

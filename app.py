@@ -116,7 +116,10 @@ def seedance(ident:str,prompt:str=Form(...),sirio:UploadFile=File(...),tein:Uplo
         paths.append(path)
     from seedance_bridge import submit
     try:request_id=submit(folder,prompt,*paths)
-    except Exception as e:raise HTTPException(502,str(e))
+    except Exception as e:
+        # A 4xx keeps the provider's message: reverse proxies (EasyPanel/Traefik) replace 502 bodies with their own page.
+        print(f'Seedance submission failed for job {ident}: {e}',flush=True)
+        raise HTTPException(422,str(e))
     jobs[ident]={'id':ident,'state':'running','status':'Seedance rendering: '+request_id}
     def collect():
         from seedance_bridge import wait_and_finish

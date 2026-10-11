@@ -28,6 +28,7 @@ def _upload_once(path,host):
             r.raise_for_status();url=r.text.strip()
         else:raise ValueError('MEDIA_HOST must be self, tmpfiles or catbox')
     if not url.startswith('https://'):raise ValueError('Host did not return an HTTPS media URL')
+    if host=='self':requests.head(url,timeout=60).raise_for_status()
     with requests.get(url,stream=True,timeout=60) as check:
         check.raise_for_status()
         if 'text/html' in check.headers.get('Content-Type',''):raise ValueError('Media URL returned a page, not a media file')

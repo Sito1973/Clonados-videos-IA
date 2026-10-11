@@ -76,6 +76,23 @@ class KieSeedanceTests(unittest.TestCase):
   with patch('kie_api.record',return_value={'state':'fail','failMsg':'reference rejected'}):
    with self.assertRaisesRegex(RuntimeError,'reference rejected'):kie_api.wait('task-1')
 
+class RetryTests(unittest.TestCase):
+ def test_failed_draft_can_be_sent_again_but_pending_cannot(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d);mesh_job(p);(p/'seedance-response.json').write_text(json.dumps({'requestId':'old','provider':'kie'}))
+   patches=[patch('mask_review.require_approved'),patch('seedance_bridge.seedance_provider',return_value='kie'),patch('seedance_bridge.credential',return_value='test'),patch('seedance_bridge.setting',return_value=''),patch('seedance_bridge.upload',return_value='https://video.example.com/media/x'),patch('kie_api.create',return_value={'code':200,'data':{'taskId':'new'}})]
+   for x in patches:x.start()
+   try:
+    (p/'provider-status.json').write_text(json.dumps({'state':'generating'}))
+    with self.assertRaisesRegex(ValueError,'already has a provider response'):seedance_bridge.submit(p,'Replace',p/'sirio-reference.png')
+    (p/'provider-status.json').write_text(json.dumps({'state':'fail','failMsg':'File processing failed'}))
+    self.assertEqual(seedance_bridge.submit(p,'Replace',p/'sirio-reference.png'),'new')
+   finally:
+    for x in patches:x.stop()
+   archived=list((p/'failed-requests').glob('*/seedance-response.json'))
+   self.assertEqual(len(archived),1);self.assertEqual(json.loads(archived[0].read_text())['requestId'],'old')
+   self.assertFalse((p/'provider-status.json').exists())
+
 class ConformTests(unittest.TestCase):
  def test_valid_source_is_sent_untouched(self):
   with tempfile.TemporaryDirectory() as d:

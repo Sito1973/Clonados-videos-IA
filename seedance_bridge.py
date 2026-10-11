@@ -4,11 +4,25 @@ from config import credential, setting, seedance_provider
 from media_host import upload
 from audio_workflow import finish_preview
 
+def failed_request(folder):
+    """True only when the provider reported a final failure, so a new request cannot duplicate a live or finished one."""
+    try:saved=json.loads((Path(folder)/'provider-status.json').read_text())
+    except (OSError,ValueError):return False
+    return saved.get('state')=='fail' or saved.get('status') in ['FAILED','CANCELED']
+
+def archive_failed(folder,names):
+    """Keep a failed request's files for the record and clear the way for a new one."""
+    target=Path(folder)/'failed-requests'/time.strftime('%Y%m%d-%H%M%S');target.mkdir(parents=True,exist_ok=True)
+    for name in names:
+        if (Path(folder)/name).exists():(Path(folder)/name).rename(target/name)
+
 def submit(folder,prompt,sirio,tein=None,status=print):
     folder=Path(folder)
     from mask_review import require_approved, is_mesh
     require_approved(folder)
-    if (folder/'seedance-response.json').exists():raise ValueError('This job already has a provider response. Resume it; prepare a new job for a deliberate variation.')
+    if (folder/'seedance-response.json').exists():
+        if not failed_request(folder):raise ValueError('This job already has a provider response. Resume it; prepare a new job for a deliberate variation.')
+        archive_failed(folder,['seedance-request.json','seedance-response.json','provider-status.json','generation.json','submission-error.json'])
     service=seedance_provider()
     if service not in ['enhancor','kie']:raise ValueError('SEEDANCE_PROVIDER must be enhancor or kie.')
     key=credential('KIE_API_KEY' if service=='kie' else 'ENHANCOR_API_KEY')
@@ -109,7 +123,9 @@ def wait_and_finish(folder,request_id,status=print):
 def submit_hd(folder):
     """Complete the accepted draft; the provider reuses its original parameters."""
     folder=Path(folder)
-    if (folder/'hd/response.json').exists():raise ValueError('HD already submitted. Resume its saved request.')
+    if (folder/'hd/response.json').exists():
+        if not failed_request(folder/'hd'):raise ValueError('HD already submitted. Resume its saved request.')
+        archive_failed(folder/'hd',['request.json','response.json','provider-status.json','submission-error.json'])
     generation=json.loads((folder/'generation.json').read_text())
     original=json.loads((folder/'seedance-request.json').read_text())
     kie=generation.get('provider')=='kie'

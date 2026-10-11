@@ -51,7 +51,7 @@ async def callback(token:str,request:Request):
     # Polling remains authoritative; unverified callbacks cannot alter jobs.
     return {'received':True}
 
-@app.get('/media/{expires}/{signature}/{relative:path}')
+@app.api_route('/media/{expires}/{signature}/{relative:path}',methods=['GET','HEAD'])
 def media(expires:str,signature:str,relative:str):
     path=auth.media_file(expires,signature,relative)
     if not path:raise HTTPException(404)

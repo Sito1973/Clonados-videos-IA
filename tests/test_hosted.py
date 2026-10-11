@@ -42,6 +42,7 @@ class HostedTests(unittest.TestCase):
   url=auth.media_url(path);self.assertTrue(url.startswith('https://video.example.com/media/'))
   route=url.removeprefix('https://video.example.com')
   self.assertEqual(self.client.get(route).content,b'media')
+  head=self.client.head(route);self.assertEqual((head.status_code,head.headers['content-length']),(200,'5'))
   expires,signature,relative=route.removeprefix('/media/').split('/',2)
   self.assertEqual(self.client.get(f'/media/{expires}/{"0"*64}/{relative}').status_code,404)
   self.assertEqual(self.client.get(auth.media_url(path,hours=-1).removeprefix('https://video.example.com')).status_code,404)
@@ -54,9 +55,9 @@ class HostedTests(unittest.TestCase):
   media=Mock();media.headers={'Content-Type':'video/mp4'};media.iter_content.return_value=iter([b'\x00\x00\x00 ftypisom'])
   context=Mock();context.__enter__=Mock(return_value=media);context.__exit__=Mock(return_value=False)
   settings=lambda k,d='':{'MEDIA_HOST':'self','MEDIA_HOST_FALLBACKS':''}.get(k,d)
-  with patch('media_host.setting',side_effect=settings),patch('media_host.requests.get',return_value=context) as get,patch('media_host.requests.post') as post:
+  with patch('media_host.setting',side_effect=settings),patch('media_host.requests.get',return_value=context) as get,patch('media_host.requests.head') as head,patch('media_host.requests.post') as post:
    url=media_host.upload(path)
-  self.assertTrue(url.startswith('https://video.example.com/media/'));self.assertEqual(get.call_args.args[0],url);post.assert_not_called()
+  self.assertTrue(url.startswith('https://video.example.com/media/'));self.assertEqual(get.call_args.args[0],url);self.assertEqual(head.call_args.args[0],url);post.assert_not_called()
 
  def test_callback_route_acknowledges_only_its_secret(self):
   self.assertEqual(self.client.post(auth.callback_path(),json={'taskId':'x'}).json(),{'received':True})

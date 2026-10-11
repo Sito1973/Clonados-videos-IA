@@ -23,6 +23,8 @@ Create `.env` from `.env.example` only if absent. Open it in the user's editor a
 - Enhancor: https://app.enhancor.ai/api-dashboard
 - Replicate: https://replicate.com/account/api-tokens
 - Hugging Face token is optional for the alternative depth provider.
+- kie.ai is an optional alternative: `KIE_API_KEY` with `SEEDANCE_PROVIDER=kie` (Seedance 2.5) and `AUDIO_SEPARATION=kie` (vocal separation). Depth and SAM modes still need Replicate.
+- For a VPS/EasyPanel server instead of a local install, follow [DEPLOY-EASYPANEL.md](DEPLOY-EASYPANEL.md).
 - Default media host is Tmpfiles (no key). Catbox is optional; see MEDIA-HOSTING.md. Explain that the selected media host receives public-URL uploads when they generate.
 
 After launch, run `.venv/bin/python doctor.py --require-keys`. Exit 2 means keys or the required callback are missing. A configured key does not prove balance or API access. Do not make billed requests to test setup.

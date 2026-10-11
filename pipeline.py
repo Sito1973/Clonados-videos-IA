@@ -11,6 +11,11 @@ load_env()
 DEPTH='depth-anything/Video-Depth-Anything'
 SAM='linoyts/SAM3-Video'
 
+def upright(frame):
+    """RGB image in display orientation: phone videos store a rotation instead of rotated pixels."""
+    image=frame.to_image()
+    return image.rotate(frame.rotation,expand=True) if frame.rotation%360 else image
+
 def frames(path):
     with av.open(str(path)) as c:
         for f in c.decode(video=0): yield f.to_ndarray(format='rgb24')
@@ -32,13 +37,13 @@ def normalize(src,dst):
         vs=inp.streams.video[0];rate=float(vs.average_rate or 24)
         dur=float(vs.duration*vs.time_base) if vs.duration else float(inp.duration/av.time_base)
         if dur>30:raise ValueError('Use a clip of 30 seconds or less for this hosted workflow.')
-        it=iter(inp.decode(video=0));cur=next(it);start=float(cur.time or 0);nxt=next(it,None)
-        scale=min(1,960/max(cur.width,cur.height));w=max(2,int(cur.width*scale)//2*2);h=max(2,int(cur.height*scale)//2*2)
+        it=iter(inp.decode(video=0));cur=next(it);start=float(cur.time or 0);nxt=next(it,None);width,height=upright(cur).size
+        scale=min(1,960/max(width,height));w=max(2,int(width*scale)//2*2);h=max(2,int(height*scale)//2*2)
         out,stream=writer(dst,w,h);count=round(dur*24)
         for i in range(count):
             t=i/24+start
             while nxt is not None and float(nxt.time)<=t:cur=nxt;nxt=next(it,None)
-            a=np.asarray(cur.to_image().resize((w,h),Image.Resampling.LANCZOS));put(out,stream,a,i)
+            a=np.asarray(upright(cur).resize((w,h),Image.Resampling.LANCZOS));put(out,stream,a,i)
         finish(out,stream)
     return {'frames':count,'fps':24,'width':w,'height':h,'duration':count/24}
 

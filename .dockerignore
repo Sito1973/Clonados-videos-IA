@@ -1,0 +1,12 @@
+.git
+.venv
+.venv-face
+.env*
+runs
+models
+examples
+__pycache__
+*.pyc
+*.log
+.DS_Store
+.runtime-webhook.json

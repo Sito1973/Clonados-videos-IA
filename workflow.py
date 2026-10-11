@@ -14,6 +14,9 @@ sub.choices['prepare'].add_argument('--mode',choices=['depth','face_mesh','depth
 a=p.parse_args()
 if a.command=='prepare':
  import uuid,shutil
+ from config import require_mode
+ try:require_mode(a.mode)
+ except ValueError as e:p.error(str(e))
  from pipeline import run
  folder=ROOT/'runs'/uuid.uuid4().hex;folder.mkdir(parents=True)
  shutil.copy2(a.video,folder/'upload.mp4');print('JOB:',folder.name,flush=True)

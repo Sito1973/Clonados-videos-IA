@@ -5,18 +5,23 @@ For installation/onboarding requests, follow `docs/SETUP-AGENT.md` first. Do not
 Carry authorized jobs through preparation, quality review, generation and delivery without stopping after each processing stage. Ask only for missing creative choices or submission approval not already given. Never automatically purchase an HD upgrade: the user approves that step.
 
 1. Preserve the source file and complete original audio.
-2. Isolate vocals with Demucs, pitch +3 semitones with timing preserved, and embed them in the prepared composite. Do not attach separate audio to Seedance.
+2. Isolate vocals with the configured separator (Demucs on Replicate by default; kie.ai separate-vocals when AUDIO_SEPARATION=kie), pitch +3 semitones with timing preserved, and embed them in the prepared composite. Do not attach separate audio to Seedance.
 3. Generate depth with lucataco/depth-anything-video and retain its exact colors.
 4. Obtain raw SAM 3 masks. If depth segmentation misses the subject or includes background, retry using original RGB detail and composite the original colored depth through those masks. Record this fallback.
 5. Mandatory visual mask QA before EVERY generation: review the full clip, including all cuts, subject extremities, hair, hands, clothing, background spill, holes, alignment and flicker. Automated checks and sampled contact sheets alone do not establish full visual approval. Repair failures independently within the authorized task, then review again. Never approve a known-bad mask. Use mask_review to bind approval to current artifacts. User approval of the current mask may be recorded as such, without falsely claiming agent full-clip review.
 6. Match the references and prompt to the actual subjects. A single Sirio replacement uses only Sirio's reference; never carry over the previous two-person mapping.
-7. Show the exact creative prompt before submission. Existing explicit authorization to submit is sufficient; do not ask again unnecessarily. Submit through Enhancor as Seedance Edit draft by default.
+7. Show the exact creative prompt before submission. Existing explicit authorization to submit is sufficient; do not ask again unnecessarily. Submit as a draft through the configured provider: Enhancor Seedance Edit by default, or kie.ai Seedance 2.5 reference-to-video (480p draft) when SEEDANCE_PROVIDER=kie.
 8. Retrieve results and restore the entire untouched original source audio, discarding generated audio. Preserve draft artifacts. Report failures honestly; never claim submission or completion without an actual result.
-9. On explicit approval, complete the draft at 1080p using draft_id and webhook_url, then restore original audio again.
+9. On explicit approval, complete the draft at 1080p (Enhancor: draft_id and webhook_url; kie.ai: bytedance/seedance-2-5-draft with draft_task_id), then restore original audio again.
 10. Show the final preview and download. Keep status persisted and UI preview selection stable. Never expose credentials.
 
 ## Reference-mode routing (required)
-Enhancor Edit accepts exactly one video: the prepared source. If the replacement identity reference is a video, use multi_reference (Omni), with prepared source @Video1 and identity reference @Video2. Use the identity clip for appearance only unless the user explicitly asks to use its voice or performance. Do not convert that reference to pictures without permission. For image references, default to Edit. Show the actual mode in the UI and saved generation metadata. Omni requires duration and aspect ratio; use the source framing and nearest supported duration. Preserve the full source audio in the final export and disclose any necessary short last-frame hold.
+Enhancor Edit accepts exactly one video: the prepared source. If the replacement identity reference is a video, use multi_reference (Omni), with prepared source @Video1 and identity reference @Video2. Use the identity clip for appearance only unless the user explicitly asks to use its voice or performance. Do not convert that reference to pictures without permission. For image references, default to Edit. Show the actual mode in the UI and saved generation metadata. Omni requires duration and aspect ratio; use the source framing and nearest supported duration. Preserve the full source audio in the final export and disclose any necessary short last-frame hold or generated-tail trim.
+
+With SEEDANCE_PROVIDER=kie there is no Edit endpoint: the prepared source is reference video 1 (@Video1), a video identity reference is @Video2, and images follow as @Image1 onward. kie.ai allows at most 30 s of reference video in total; the adapter conforms references to its limits in the job's kie/ folder without altering reviewed artifacts. Do not claim face pass-through on kie.ai; report face-policy rejections as returned.
+
+## Hosted deployment
+For VPS/EasyPanel installs follow `docs/DEPLOY-EASYPANEL.md`. Keys live only in the host's environment settings, never in the repository or chat. APP_PASSWORD is mandatory whenever the app binds beyond localhost; prefer MEDIA_HOST=self with PUBLIC_BASE_URL so media is served through signed, expiring links.
 
 
 ## Fast alternative: face mesh

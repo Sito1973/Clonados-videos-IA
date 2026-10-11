@@ -1,6 +1,10 @@
 # Media hosting
 
-Enhancor must fetch direct HTTPS media. Replicate preprocessing uses Replicate's `/v1/files` upload API with your token. Enhancor references use the selected public host below. URLs and request bodies stay in each local run; do not share run folders with the clean project.
+Seedance providers (Enhancor or kie.ai) must fetch direct HTTPS media. Replicate preprocessing uses Replicate's `/v1/files` upload API with your token. Provider references use the selected host below. URLs and request bodies stay in each local run; do not share run folders with the clean project.
+
+## Self (signed links from your deployment)
+
+`MEDIA_HOST=self` with `PUBLIC_BASE_URL=https://your-domain`. Nothing is uploaded elsewhere: the app serves the one requested run file at `/media/EXPIRY/SIGNATURE/JOB/FILE`, an HMAC-signed link valid for `MEDIA_LINK_HOURS` (default 168, matching how long a draft can be completed). Links outside `runs/`, expired or altered links return 404; everything else stays behind the login. The uploader fetches each link once to confirm the domain serves it. Set `MEDIA_HOST_FALLBACKS=` empty so a failure never falls back to a public host. The signing key is `APP_SECRET` or a generated `runs/.app-secret`; keep `runs/` on a persistent volume.
 
 ## Tmpfiles (default)
 

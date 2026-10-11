@@ -22,3 +22,13 @@ A live user-authorized end-to-end test completed successfully: Demucs, colored d
 - Mesh modes remain optimized for a single centered speaker. Other framing, multiple faces, other operating systems and every provider failure condition are not exhaustively validated. No claim of bug-free operation is made.
 
 Hosting fallback checks: 13 automated tests now pass, including primary-host retry, fallback switching, disabled fallback, and success without fallback. Catbox behavior is mocked in these tests, not newly live-uploaded.
+
+
+## Hosted deployment and kie.ai adapter — October 11, 2026
+
+- Docker image built from the included `Dockerfile` (python:3.12-slim, Linux x86-64) and run: it refuses to start beyond localhost without `APP_PASSWORD`; `/health` is public; every other route redirects to the login page or returns 401; sign-in, wrong-password message, sign-out and the kie.ai provider label were exercised in headless Chromium at phone width.
+- `doctor.py --mesh` inside the image now creates a real Face Landmarker. This caught missing `libEGL`/`libGLESv2` in the first image; `libegl1` and `libgles2` were added.
+- Fast · Face mesh preparation ran inside the image on an included example clip: 104/104 frames tracked, Rubber Band +3 vocals embedded, prepared input within kie.ai reference limits without conversion. Only the paid vocal-separation call was replaced by a local stub.
+- Phone videos with display-rotation metadata were previously normalized sideways; normalization and kie.ai conversion now apply the stored rotation (pixel-identical to ffmpeg's autorotation in the test).
+- 35 automated tests pass, including kie.ai draft/1080p payloads, rejection handling, polling, stem naming, reference conforming, signed media links, login limits, callbacks and tail trimming with byte-identical source audio packets.
+- Not live-tested: no kie.ai request was sent (no credentials or approval for paid calls in this environment). Field names follow kie.ai's published documentation; the first real draft should be a short clip. kie.ai's handling of real faces is undocumented.

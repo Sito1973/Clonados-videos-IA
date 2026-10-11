@@ -15,6 +15,10 @@ def setting(name,default=''):
     load_env()
     value=os.getenv(name,default)
     if name=='ENHANCOR_WEBHOOK_URL' and not value:
+        # A public deployment receives callbacks itself; locally launch.py writes a tunnel URL.
+        if setting('PUBLIC_BASE_URL').startswith('https://'):
+            from auth import callback_url
+            return callback_url()
         import json
         try:value=json.loads((ROOT/'.runtime-webhook.json').read_text())['url']
         except (OSError,ValueError,KeyError):pass
@@ -24,3 +28,23 @@ def credential(name):
     value=setting(name)
     if not value:raise ValueError(f'Set {name} in this project’s .env file.')
     return value
+
+def seedance_provider():
+    """enhancor (original integration) or kie; kie is implied when only a kie.ai key exists."""
+    value=setting('SEEDANCE_PROVIDER').strip().lower()
+    if value:return value
+    return 'kie' if setting('KIE_API_KEY') and not setting('ENHANCOR_API_KEY') else 'enhancor'
+
+def separation_provider():
+    """replicate (Demucs) or kie (separate-vocals); kie is implied when only a kie.ai key exists."""
+    value=setting('AUDIO_SEPARATION').strip().lower()
+    if value:return value
+    return 'kie' if setting('KIE_API_KEY') and not setting('REPLICATE_API_TOKEN') else 'replicate'
+
+def require_mode(mode):
+    """Refuse a preparation that would stop midway after billed calls."""
+    if mode!='face_mesh' and not setting('REPLICATE_API_TOKEN'):
+        raise ValueError('Depth modes need REPLICATE_API_TOKEN: depth and SAM 3 masks run on Replicate. Use Fast · Face mesh or add a Replicate token.')
+    separation=separation_provider()
+    if separation not in ['replicate','kie']:raise ValueError('AUDIO_SEPARATION must be replicate or kie.')
+    credential('KIE_API_KEY' if separation=='kie' else 'REPLICATE_API_TOKEN')

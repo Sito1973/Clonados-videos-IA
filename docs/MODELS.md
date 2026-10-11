@@ -10,6 +10,8 @@ All neural inference in the default path is hosted. No weight downloads are incl
 | Depth alternative | [Video-Depth-Anything Space](https://huggingface.co/spaces/depth-anything/Video-Depth-Anything) | public GPU quota/availability; optional HF_TOKEN |
 | Segmentation | [lucataco/sam3-video](https://replicate.com/lucataco/sam3-video) | pinned version `408f82fc20c300aac5d61d2e34ddb34cd0181e810e9f609d250aed14d5f81269`; `video`, `prompt`, `mask_only=true`, `return_zip=true` |
 | Generation | Enhancor Seedance 2.5 | Edit or multi_reference; draft then approved 1080p |
+| Generation, alternative | kie.ai `bytedance/seedance-2-5`, then `bytedance/seedance-2-5-draft` | `SEEDANCE_PROVIDER=kie`; multimodal reference-to-video 480p draft, then 1080p from `draft_task_id`; see [KIE-API.md](KIE-API.md) |
+| Vocal separation, alternative | kie.ai `ai-music-api/separate-vocals` | `AUDIO_SEPARATION=kie`; `separate_vocal`, input up to 20 MB |
 | Pitch | Rubber Band CLI | +3 semitones, time ratio 1 |
 | Video/audio IO | PyAV / FFmpeg libraries | normalization, compositing, AAC input vocals, original audio packet remux |
 

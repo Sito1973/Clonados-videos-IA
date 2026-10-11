@@ -1,4 +1,4 @@
-"""Public, direct media URLs for Enhancor. Configured fallback hosts are tried only for media hosting failures."""
+"""Direct media URLs for the providers: signed links from this server (self) or public hosts. Configured fallback hosts are tried only for media hosting failures."""
 from pathlib import Path
 from urllib.parse import urlparse
 import requests,re,html,time,warnings
@@ -7,7 +7,10 @@ from config import setting
 def _upload_once(path,host):
     path=Path(path)
     with path.open('rb') as f:
-        if host=='tmpfiles':
+        if host=='self':
+            from auth import media_url
+            url=media_url(path)
+        elif host=='tmpfiles':
             if path.stat().st_size>100_000_000:raise ValueError('Tmpfiles limit is 100 MB; choose another host or reduce the reference.')
             r=requests.post('https://tmpfiles.org/api/v1/upload',files={'file':(path.name,f)},data={'expire':21600},timeout=180)
             r.raise_for_status();url=r.json()['data']['url']
@@ -23,7 +26,7 @@ def _upload_once(path,host):
             if setting('CATBOX_USERHASH'):data['userhash']=setting('CATBOX_USERHASH')
             r=requests.post('https://catbox.moe/user/api.php',data=data,files={'fileToUpload':(path.name,f)},timeout=180)
             r.raise_for_status();url=r.text.strip()
-        else:raise ValueError('MEDIA_HOST must be tmpfiles or catbox')
+        else:raise ValueError('MEDIA_HOST must be self, tmpfiles or catbox')
     if not url.startswith('https://'):raise ValueError('Host did not return an HTTPS media URL')
     with requests.get(url,stream=True,timeout=60) as check:
         check.raise_for_status()
@@ -38,7 +41,7 @@ def upload(path):
     primary=setting('MEDIA_HOST','tmpfiles')
     fallback=setting('MEDIA_HOST_FALLBACKS','catbox')
     hosts=list(dict.fromkeys([primary]+[h.strip() for h in fallback.split(',') if h.strip()]))
-    if any(h not in ['tmpfiles','catbox'] for h in hosts):raise ValueError('Supported media hosts: tmpfiles, catbox')
+    if any(h not in ['self','tmpfiles','catbox'] for h in hosts):raise ValueError('Supported media hosts: self, tmpfiles, catbox')
     errors=[]
     for host in hosts:
         for attempt in range(2):

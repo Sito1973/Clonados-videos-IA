@@ -1,18 +1,77 @@
 from pathlib import Path
-import threading,uuid,shutil,json
-from fastapi import FastAPI,UploadFile,File,Form,HTTPException
-from fastapi.responses import FileResponse
+import threading,uuid,shutil,json,hmac
+from fastapi import FastAPI,UploadFile,File,Form,HTTPException,Request
+from fastapi.responses import FileResponse,HTMLResponse,JSONResponse,RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pipeline import run
+import auth
 ROOT=Path(__file__).resolve().parent
 RUNS=ROOT/'runs';RUNS.mkdir(exist_ok=True)
+if auth.exposed() and not auth.password():raise RuntimeError('Set APP_PASSWORD before serving beyond localhost.')
 app=FastAPI();jobs={}
+
+@app.middleware('http')
+async def require_login(request:Request,call_next):
+    path=request.url.path
+    if '/.' in path:return JSONResponse({'detail':'Not Found'},404)
+    if not auth.password() or path in ['/health','/login'] or path.startswith(('/callback/','/media/')) or auth.valid_session(request.cookies.get(auth.COOKIE,'')):return await call_next(request)
+    if request.method=='GET' and 'text/html' in request.headers.get('accept',''):return RedirectResponse('/login',303)
+    return JSONResponse({'detail':'Sign in required.'},401)
+
+LOGIN='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in · Genjustsu</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fafafb;color:#2b2f3a;font:15px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}form{width:min(360px,calc(100vw - 32px));padding:28px;background:#fff;border:1px solid #ececef;border-radius:16px;box-shadow:0 12px 32px -12px #16181f14}h1{font-size:22px;margin:0 0 18px}input{width:100%;box-sizing:border-box;font:inherit;padding:12px;border:1px solid #dfe2e8;border-radius:8px;margin-bottom:14px}button{width:100%;font:inherit;font-weight:650;padding:12px;border:0;border-radius:8px;background:#1f18c0;color:#fff;cursor:pointer}p{color:#b42318;font-size:13px;margin:0 0 12px}</style></head><body><form method="post" action="/login"><h1>Genjustsu</h1><!--error--><input type="password" name="password" placeholder="Password" aria-label="Password" autocomplete="current-password" required autofocus><button>Sign in</button></form></body></html>'''
+def login_page(error='',code=200):return HTMLResponse(LOGIN.replace('<!--error-->',f'<p>{error}</p>' if error else ''),code)
+
+@app.get('/login')
+def show_login():return login_page()
+
+@app.post('/login')
+def login(request:Request,password:str=Form('')):
+    if not auth.password():return RedirectResponse('/',303)
+    client=request.client.host if request.client else 'unknown'
+    if not auth.login_allowed(client):return login_page('Too many attempts. Try again in 15 minutes.',429)
+    if not auth.check_password(password):
+        auth.login_failed(client)
+        return login_page('Incorrect password.',401)
+    response=RedirectResponse('/',303)
+    response.set_cookie(auth.COOKIE,auth.session_token(),max_age=14*86400,httponly=True,samesite='lax',secure=request.url.scheme=='https')
+    return response
+
+@app.get('/logout')
+def logout():
+    response=RedirectResponse('/login',303);response.delete_cookie(auth.COOKIE)
+    return response
+
+@app.post('/callback/{token}')
+async def callback(token:str,request:Request):
+    if not hmac.compare_digest(('/callback/'+token).encode(),auth.callback_path().encode()):raise HTTPException(404)
+    body=await request.body()
+    if not 0<len(body)<=65536:raise HTTPException(413)
+    try:json.loads(body)
+    except ValueError:raise HTTPException(400)
+    # Polling remains authoritative; unverified callbacks cannot alter jobs.
+    return {'received':True}
+
+@app.get('/media/{expires}/{signature}/{relative:path}')
+def media(expires:str,signature:str,relative:str):
+    path=auth.media_file(expires,signature,relative)
+    if not path:raise HTTPException(404)
+    return FileResponse(path)
+
+@app.get('/settings')
+def settings():
+    from config import seedance_provider,separation_provider,setting
+    service=seedance_provider()
+    return {'seedance_provider':service,'seedance_label':{'kie':'kie.ai','enhancor':'Enhancor'}.get(service,service),'separation':separation_provider(),'depth_available':bool(setting('REPLICATE_API_TOKEN')),'login':bool(auth.password())}
+
 @app.get('/')
 def index():return FileResponse(ROOT/'static/index.html')
 @app.post('/jobs')
 def create(video:UploadFile=File(...),prompt:str=Form('person'),provider:str=Form('replicate'),mode:str=Form('depth')):
     if mode not in ['depth','face_mesh','depth_mesh']:raise HTTPException(400,'Unknown workflow mode')
     if provider not in ['huggingface','replicate','replicate-chenxwh']:raise HTTPException(400,'Unknown provider')
+    from config import require_mode
+    try:require_mode(mode)
+    except ValueError as e:raise HTTPException(400,str(e))
     ident=uuid.uuid4().hex;folder=RUNS/ident;folder.mkdir();src=folder/'upload.mp4'
     with src.open('wb') as out:shutil.copyfileobj(video.file,out)
     jobs[ident]={'state':'running','status':'Starting','id':ident}

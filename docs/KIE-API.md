@@ -21,17 +21,17 @@ Enable it with `SEEDANCE_PROVIDER=kie` and/or `AUDIO_SEPARATION=kie`, plus `KIE_
     "resolution": "480p",
     "draft": true,
     "aspect_ratio": "adaptive",
-    "duration": 8,
+    "duration": -1,
     "output_format": "mp4"
   }
 }
 ```
 
-kie.ai has no dedicated edit endpoint. The adapter sends the prepared input (with its embedded +3 vocals) as reference video 1. An identity video becomes reference video 2 (Omni routing), with images after it. `aspect_ratio` is `adaptive` for a single video and the nearest supported ratio for Omni. `duration` is the source length rounded up to whole seconds (4–30). `finish_preview` then drops the generated video past the source end (under 1.25 s, or up to the 4 s minimum for short clips). It never trims, loops or stretches the original audio, and it records `duration-adjustment.json`.
+kie.ai has no dedicated edit endpoint. The adapter sends the prepared input (with its embedded +3 vocals) as reference video 1. An identity video becomes reference video 2 (Omni routing), with images after it. `aspect_ratio` is `adaptive` for a single video and the nearest supported ratio for Omni. kie.ai classifies subject replacement as **video editing**, which requires `"duration": -1`: the output follows the source length, and billing follows the generated length. `finish_preview` holds the last frame for a gap of up to 1 s or drops generated video past the source end; it never trims, loops or stretches the original audio, and it records `duration-adjustment.json`.
 
 `kie_api.conform_references` enforces the documented reference limits before upload. Non-conforming media is copied into the job's `kie/` folder (scaled, retimed or converted); reviewed artifacts are never modified. Cases that cannot be fixed are refused before any paid call.
 
-- Videos: mp4/mov, 2–30 s each, 30 s total, 24–60 fps, 409,600–927,408 pixels, aspect 0.4–2.5, under 200 MB.
+- Videos: mp4/mov, 4–30 s each (video editing), 30 s total, 24–60 fps, 409,600–927,408 pixels, aspect 0.4–2.5, under 200 MB.
 - Images: jpeg/png/webp, 300–6000 px per side, aspect 0.4–2.5, under 30 MB.
 
 The response is `{"code":200,"data":{"taskId":"…"}}`. It is saved as `seedance-response.json` (`{"requestId","provider":"kie","response"}`), so startup and `workflow.py resume` collect it without a new task. `generation.json` records `provider`, `api`, `mode`, `resolution` and `duration`.

@@ -99,6 +99,7 @@ Cuando haya cambios en la rama, pulsa **Deploy** de nuevo, o activa *Auto Deploy
 | `kie.ai rejected the task (402)` | No tienes crédito suficiente en kie.ai. |
 | `kie.ai rejected the task (401)` | La API key es incorrecta. |
 | `kie.ai task failed: ...` | kie.ai rechazó la generación. El motivo aparece en el mensaje (por ejemplo, la restricción de caras). |
+| `Use a clip of at least 4 seconds` o `needs reference videos of 4–30 seconds` | kie.ai edita videos de 4 a 30 segundos. Usa un clip dentro de ese rango. |
 | `kie.ai accepts at most 30 s of reference video` | El video del personaje más el clip suman más de 30 s. Usa un video del personaje más corto. |
 | `Face tracking gaps` | La cara no se detecta en algunos fotogramas. Usa un clip con la cara visible y centrada todo el tiempo. |
 | El contenedor se reinicia mientras procesa | Le falta RAM a la VPS. Sube a 4 GB o más. |

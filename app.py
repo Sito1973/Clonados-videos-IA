@@ -74,6 +74,12 @@ def create(video:UploadFile=File(...),prompt:str=Form('person'),provider:str=For
     except ValueError as e:raise HTTPException(400,str(e))
     ident=uuid.uuid4().hex;folder=RUNS/ident;folder.mkdir();src=folder/'upload.mp4'
     with src.open('wb') as out:shutil.copyfileobj(video.file,out)
+    from pipeline import check_clip
+    from config import seedance_provider
+    try:check_clip(src,4 if seedance_provider()=='kie' else 0)
+    except ValueError as e:
+        shutil.rmtree(folder,ignore_errors=True)
+        raise HTTPException(400,str(e))
     jobs[ident]={'state':'running','status':'Starting','id':ident}
     def work():
         try:

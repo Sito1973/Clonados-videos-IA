@@ -32,6 +32,15 @@ def finish(c,s):
     for p in s.encode():c.mux(p)
     c.close()
 
+def check_clip(path,minimum=0):
+    """Refuse a clip the configured provider cannot take, before any billed preparation."""
+    try:
+        with av.open(str(path)) as c:
+            s=c.streams.video[0];seconds=float(c.duration/av.time_base) if c.duration else float(s.duration*s.time_base) if s.duration else 0
+    except (av.FFmpegError,IndexError):raise ValueError('The uploaded file is not a readable video.') from None
+    if seconds>30.05:raise ValueError('Use a clip of 30 seconds or less for this hosted workflow.')
+    if seconds<minimum:raise ValueError(f'Use a clip of at least {minimum} seconds: kie.ai edits reference videos of 4–30 seconds.')
+
 def normalize(src,dst):
     with av.open(str(src)) as inp:
         vs=inp.streams.video[0];rate=float(vs.average_rate or 24)

@@ -74,6 +74,15 @@ class HostedTests(unittest.TestCase):
    reply=self.client.post(f'/jobs/{self.job.name}/seedance',data={'prompt':'Replace'},files={'sirio':('ref.png',b'image','image/png')})
   self.assertEqual(reply.status_code,422);self.assertIn('reference rejected',reply.json()['detail'])
 
+ def test_kie_clip_length_checked_before_preparation(self):
+  import tempfile
+  from test_kie import make_video
+  self.login()
+  with tempfile.TemporaryDirectory() as d:
+   make_video(Path(d)/'short.mp4',320,240,3)
+   reply=self.client.post('/jobs',files={'video':('short.mp4',(Path(d)/'short.mp4').read_bytes(),'video/mp4')},data={'mode':'face_mesh'})
+  self.assertEqual(reply.status_code,400);self.assertIn('at least 4 seconds',reply.json()['detail'])
+
  def test_launch_refuses_public_bind_without_password(self):
   env={**os.environ,'APP_HOST':'0.0.0.0','APP_PASSWORD':''}
   result=subprocess.run([sys.executable,'launch.py'],cwd=Path(server.__file__).parent,env=env,capture_output=True,text=True,timeout=60)

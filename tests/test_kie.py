@@ -24,7 +24,7 @@ def make_video(path,w,h,seconds,fps=24,audio=True):
 
 def mesh_job(p):
  (p/'workflow-mode.json').write_text('{"mode":"face_mesh"}');(p/'audio-manifest.json').write_text('{}')
- make_video(p/'seedance-input.mp4',960,540,2.3);Image.new('RGB',(400,600),'gray').save(p/'sirio-reference.png')
+ make_video(p/'seedance-input.mp4',960,540,4.3);Image.new('RGB',(400,600),'gray').save(p/'sirio-reference.png')
 
 class KieSeedanceTests(unittest.TestCase):
  def test_draft_is_480p_reference_to_video_with_saved_ids(self):
@@ -35,7 +35,7 @@ class KieSeedanceTests(unittest.TestCase):
     self.assertEqual(seedance_bridge.submit(p,'Replace the subject',p/'sirio-reference.png'),'task-1')
    body=created.call_args.args[0];inp=body['input']
    self.assertEqual(body['model'],'bytedance/seedance-2-5');self.assertEqual(body['callBackUrl'],'https://video.example.com/callback/x')
-   self.assertTrue(inp['draft']);self.assertEqual(inp['resolution'],'480p');self.assertEqual(inp['duration'],4);self.assertEqual(inp['aspect_ratio'],'adaptive')
+   self.assertTrue(inp['draft']);self.assertEqual(inp['resolution'],'480p');self.assertEqual(inp['duration'],-1);self.assertEqual(inp['aspect_ratio'],'adaptive')
    self.assertEqual(inp['reference_video_urls'],['https://video.example.com/media/seedance-input.mp4'])
    self.assertEqual(inp['reference_image_urls'],['https://video.example.com/media/sirio-reference.png'])
    self.assertIn('Reference order: @Video1 is reference video 1. @Image1 is reference image 1.',inp['prompt']);self.assertIn('Remove all face mesh lines',inp['prompt'])
@@ -96,15 +96,17 @@ class RetryTests(unittest.TestCase):
 class ConformTests(unittest.TestCase):
  def test_valid_source_is_sent_untouched(self):
   with tempfile.TemporaryDirectory() as d:
-   src=Path(d)/'in.mp4';make_video(src,960,540,2)
+   src=Path(d)/'in.mp4';make_video(src,960,540,4)
    self.assertEqual(kie_api.conform_video(src,Path(d)/'out.mp4'),src)
+   short=Path(d)/'short.mp4';make_video(short,960,540,3)
+   with self.assertRaisesRegex(ValueError,'4–30 seconds'):kie_api.conform_video(short,Path(d)/'x.mp4')
 
  def test_small_low_fps_video_is_scaled_and_retimed(self):
   with tempfile.TemporaryDirectory() as d:
-   src=Path(d)/'in.mov';make_video(src,640,360,2.5,fps=20)
+   src=Path(d)/'in.mov';make_video(src,640,360,4.5,fps=20)
    out=kie_api.conform_video(src,Path(d)/'out.mp4');w,h,fps,seconds=kie_api.video_info(out)
    self.assertNotEqual(out,src);self.assertTrue(kie_api.MIN_PIXELS<=w*h<=kie_api.MAX_PIXELS);self.assertEqual((w%2,h%2),(0,0))
-   self.assertEqual(fps,24);self.assertAlmostEqual(seconds,2.5,delta=.1)
+   self.assertEqual(fps,24);self.assertAlmostEqual(seconds,4.5,delta=.1)
    with av.open(str(out)) as c:self.assertTrue(c.streams.audio)
 
  def test_total_reference_video_limit(self):
@@ -126,7 +128,7 @@ class RotationTests(unittest.TestCase):
   from pipeline import normalize
   if not shutil.which('ffmpeg'):self.skipTest('ffmpeg CLI is needed to write rotation metadata')
   with tempfile.TemporaryDirectory() as d:
-   p=Path(d);make_video(p/'plain.mp4',320,180,2.5)
+   p=Path(d);make_video(p/'plain.mp4',320,180,4.5)
    subprocess.run(['ffmpeg','-v','error','-display_rotation:v:0','90','-i',str(p/'plain.mp4'),'-c','copy',str(p/'phone.mp4')],check=True)
    self.assertEqual(kie_api.video_info(p/'phone.mp4')[:2],(180,320))
    meta=normalize(p/'phone.mp4',p/'original.mp4');self.assertEqual((meta['width'],meta['height']),(180,320))
@@ -162,5 +164,6 @@ class DurationTests(unittest.TestCase):
    self.assertEqual(json.loads((p/'duration-adjustment.json').read_text())['method'],method)
  def test_long_generation_tail_is_trimmed(self):self.check(2,'trim generated video tail')
  def test_short_generation_holds_last_frame(self):self.check(16/24,'hold final frame')
+ def test_up_to_one_second_short_is_held(self):self.check(6/24,'hold final frame')
 
 if __name__=='__main__':unittest.main()

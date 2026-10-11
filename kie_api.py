@@ -62,7 +62,7 @@ def video_info(path):
 def conform_video(src,dst):
     """src when it already meets the reference-video limits; otherwise an H.264/AAC copy scaled and retimed to meet them."""
     src=Path(src);w,h,fps,seconds=video_info(src)
-    if not 2<=seconds<=30.05:raise ValueError(f'kie.ai reference videos must last 2–30 seconds ({src.name}: {seconds:.1f} s).')
+    if not 4<=seconds<=30.05:raise ValueError(f'kie.ai video editing needs reference videos of 4–30 seconds ({src.name}: {seconds:.1f} s).')
     if not .4<=w/h<=2.5:raise ValueError(f'kie.ai reference videos need an aspect ratio between 0.4 and 2.5 ({src.name}).')
     if MIN_PIXELS<=w*h<=MAX_PIXELS and 24<=fps<=60 and src.suffix.lower() in VIDEO_TYPES and src.stat().st_size<200_000_000:return src
     if w*h<MIN_PIXELS:

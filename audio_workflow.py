@@ -97,7 +97,7 @@ def finish_preview(generated,folder):
         vd=float(stream.duration*stream.time_base)
         sd=float(source.duration/av.time_base)
     # Whole-second providers (4 s minimum) overshoot; the tail beyond the source is dropped, never the source audio.
-    if 0.25 < sd-vd <= 0.5 or 0.25 < vd-sd <= max(1.25,4.25-sd):
+    if 0.25 < sd-vd <= 1 or 0.25 < vd-sd <= max(1.25,4.25-sd):
         aligned=folder/'seedance-duration-aligned.mp4'
         _retime(generated,aligned,sd)
         (folder/'duration-adjustment.json').write_text(json.dumps({'method':'hold final frame' if sd>vd else 'trim generated video tail','seconds':abs(sd-vd),'original_audio':'unchanged'}))

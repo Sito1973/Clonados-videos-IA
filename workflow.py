@@ -19,7 +19,12 @@ if a.command=='prepare':
  except ValueError as e:p.error(str(e))
  from pipeline import run
  folder=ROOT/'runs'/uuid.uuid4().hex;folder.mkdir(parents=True)
- shutil.copy2(a.video,folder/'upload.mp4');print('JOB:',folder.name,flush=True)
+ shutil.copy2(a.video,folder/'upload.mp4')
+ from pipeline import check_clip
+ from config import seedance_provider
+ try:check_clip(folder/'upload.mp4',4 if seedance_provider()=='kie' else 0)
+ except ValueError as e:shutil.rmtree(folder);p.error(str(e))
+ print('JOB:',folder.name,flush=True)
  if a.mode=='face_mesh':
   from face_mesh import run as run_mesh
   run_mesh(folder/'upload.mp4',folder)

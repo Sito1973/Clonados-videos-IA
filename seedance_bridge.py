@@ -69,12 +69,10 @@ def submit(folder,prompt,sirio,tein=None,status=print):
 
 def _queue_kie(folder,p,prepared,status):
     """kie.ai has no edit endpoint: multimodal reference-to-video as a 480p draft, with the same references and prompt."""
-    import av,math
     from kie_api import create,Rejected
-    with av.open(str(prepared)) as source:seconds=float(source.duration/av.time_base)
     order=' '.join([f'@Video{i+1} is reference video {i+1}.' for i in range(len(p['videos']))]+[f'@Image{i+1} is reference image {i+1}.' for i in range(len(p['images']))])
-    # Whole seconds at or above the source: finish_preview trims the generated tail, never the original audio.
-    inp={'prompt':p['prompt']+'\nReference order: '+order,'reference_video_urls':p['videos'],'resolution':'480p','draft':True,'aspect_ratio':p['aspect_ratio'],'duration':max(4,min(30,math.ceil(seconds-.05))),'output_format':'mp4'}
+    # Replacing a subject is classified as video editing, which requires duration -1: the output follows the source length.
+    inp={'prompt':p['prompt']+'\nReference order: '+order,'reference_video_urls':p['videos'],'resolution':'480p','draft':True,'aspect_ratio':p['aspect_ratio'],'duration':-1,'output_format':'mp4'}
     if p['images']:inp['reference_image_urls']=p['images']
     body={'model':'bytedance/seedance-2-5','input':inp}
     if p['webhook_url'].startswith('https://'):body['callBackUrl']=p['webhook_url']

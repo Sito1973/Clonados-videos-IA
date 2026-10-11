@@ -10,6 +10,29 @@ def failed_request(folder):
     except (OSError,ValueError):return False
     return saved.get('state')=='fail' or saved.get('status') in ['FAILED','CANCELED']
 
+def finished_request(folder):
+    """True once the provider reported a final state (done or failed): nothing billed is still running."""
+    try:saved=json.loads((Path(folder)/'provider-status.json').read_text())
+    except (OSError,ValueError):return False
+    return saved.get('state') in ['success','fail'] or saved.get('status') in ['COMPLETED','FAILED','CANCELED']
+
+def generation_state(folder):
+    """none, failed, pending (draft or 1080p still running) or done."""
+    folder=Path(folder)
+    if not (folder/'seedance-response.json').exists():return 'none'
+    if failed_request(folder):return 'failed'
+    if not finished_request(folder) or ((folder/'hd/response.json').exists() and not finished_request(folder/'hd')):return 'pending'
+    return 'done'
+
+def archive_generation(folder):
+    """Move a finished draft, its 1080p and its references to versions/ so the same prepared job can generate again."""
+    folder=Path(folder);target=folder/'versions'/time.strftime('%Y%m%d-%H%M%S');target.mkdir(parents=True,exist_ok=True)
+    for name in ['seedance-request.json','seedance-response.json','provider-status.json','generation.json','submission-error.json','seedance-result.mp4','seedance-duration-aligned.mp4','duration-adjustment.json','final-preview.mp4','references.json','hd']:
+        if (folder/name).exists():(folder/name).rename(target/name)
+    import shutil
+    for reference in [*folder.glob('sirio-reference*'),*folder.glob('tein-reference*')]:shutil.copy2(reference,target/reference.name)
+    return target
+
 def archive_failed(folder,names):
     """Keep a failed request's files for the record and clear the way for a new one."""
     target=Path(folder)/'failed-requests'/time.strftime('%Y%m%d-%H%M%S');target.mkdir(parents=True,exist_ok=True)
@@ -68,8 +91,9 @@ def submit(folder,prompt,sirio,tein=None,status=print):
         mesh_mode=json.loads((folder/'workflow-mode.json').read_text()).get('mode')
         description='depth composite with face mesh overlay' if mesh_mode=='depth_mesh' else 'original video with face mesh overlay'
         p['prompt']=p['prompt'].replace('colored-depth composite',description)+' Remove all face mesh lines and any depth colors from the output; use them only for expression and lip motion guidance. Replace the entire original identity including hair. Preserve the exact embedded dialogue and timing.'
+    p['creative_prompt']=prompt
     if service=='kie':return _queue_kie(folder,p,prepared,status)
-    (folder/'seedance-request.json').write_text(json.dumps(p,indent=2));h={'x-api-key':key};base=setting('ENHANCOR_BASE_URL','https://apireq.enhancor.ai/api/seedance2.5/v1').rstrip('/')+'/'
+    creative=p.pop('creative_prompt');(folder/'seedance-request.json').write_text(json.dumps(p,indent=2));h={'x-api-key':key};base=setting('ENHANCOR_BASE_URL','https://apireq.enhancor.ai/api/seedance2.5/v1').rstrip('/')+'/'
     r=requests.post(base+'queue',headers=h,json=p,timeout=90);
     if not r.ok:
         (folder/'submission-error.json').write_text(r.text)
@@ -77,7 +101,7 @@ def submit(folder,prompt,sirio,tein=None,status=print):
     j=r.json();(folder/'seedance-response.json').write_text(json.dumps(j))
     ident=j.get('requestId')
     if not ident:raise ValueError('Seedance no devolvió un ID de solicitud.')
-    (folder/'generation.json').write_text(json.dumps({'request_id':ident,'prompt':p['prompt'],'video':'seedance-result.mp4','mode':p['mode']}))
+    (folder/'generation.json').write_text(json.dumps({'request_id':ident,'prompt':p['prompt'],'creative_prompt':creative,'video':'seedance-result.mp4','mode':p['mode']}))
     status('Borrador enviado a Seedance: '+ident)
     return ident
 
@@ -97,7 +121,7 @@ def _queue_kie(folder,p,prepared,status):
         raise
     ident=j['data']['taskId']
     (folder/'seedance-response.json').write_text(json.dumps({'requestId':ident,'provider':'kie','response':j}))
-    (folder/'generation.json').write_text(json.dumps({'request_id':ident,'prompt':inp['prompt'],'video':'seedance-result.mp4','mode':p['mode'],'provider':'kie','api':'kie.ai bytedance/seedance-2-5 multimodal reference-to-video','resolution':'480p','duration':inp['duration']}))
+    (folder/'generation.json').write_text(json.dumps({'request_id':ident,'prompt':inp['prompt'],'creative_prompt':p['creative_prompt'],'video':'seedance-result.mp4','mode':p['mode'],'provider':'kie','api':'kie.ai bytedance/seedance-2-5 multimodal reference-to-video','resolution':'480p','duration':inp['duration']}))
     status('Borrador enviado a kie.ai: '+ident)
     return ident
 

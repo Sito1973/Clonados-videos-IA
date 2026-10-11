@@ -114,6 +114,20 @@ class HostedTests(unittest.TestCase):
    mixed=self.client.post(f'/jobs/{self.job.name}/seedance',data={'prompt':'Replace'},files=[('sirio',('a.mp4',b'video','video/mp4')),('sirio',png())])
   self.assertEqual(mixed.status_code,400)
 
+ def test_new_version_reuses_the_prepared_job(self):
+  self.login();(self.job/'audio-manifest.json').write_text('{}')
+  for name,body in [('seedance-response.json','{}'),('generation.json','{"creative_prompt":"first"}'),('final-preview.mp4','x')]:(self.job/name).write_text(body)
+  png=('ref.png',b'image','image/png');url=f'/jobs/{self.job.name}/seedance'
+  with patch('mask_review.require_approved'),patch('seedance_bridge.submit',return_value='task-2') as submit,patch('seedance_bridge.wait_and_finish'):
+   self.assertEqual(self.client.post(url,data={'prompt':'Again'},files=[('sirio',png)]).status_code,409)
+   (self.job/'provider-status.json').write_text('{"state":"success"}')
+   self.assertEqual(self.client.post(url,data={'prompt':'Again'},files=[('sirio',png)]).status_code,409)
+   self.assertEqual(self.client.post(url,data={'prompt':'Again','new_version':'1'},files=[('sirio',png)]).status_code,200)
+   submit.assert_called_once()
+  versions=self.client.get(f'/jobs/{self.job.name}/versions').json()
+  self.assertEqual(len(versions),1);self.assertEqual(versions[0]['prompt'],'first');self.assertTrue(versions[0]['draft'].endswith('/final-preview.mp4'))
+  self.assertFalse((self.job/'final-preview.mp4').exists())
+
  def test_launch_refuses_public_bind_without_password(self):
   env={**os.environ,'APP_HOST':'0.0.0.0','APP_PASSWORD':''}
   result=subprocess.run([sys.executable,'launch.py'],cwd=Path(server.__file__).parent,env=env,capture_output=True,text=True,timeout=60)

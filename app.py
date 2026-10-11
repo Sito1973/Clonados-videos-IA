@@ -106,7 +106,7 @@ def get(ident:str):
         raise HTTPException(404)
     return jobs[ident]
 @app.post('/jobs/{ident}/seedance')
-def seedance(ident:str,prompt:str=Form(...),sirio:list[UploadFile]=File(...),tein:list[UploadFile]|None=File(None)):
+def seedance(ident:str,prompt:str=Form(...),sirio:list[UploadFile]=File(...),tein:list[UploadFile]|None=File(None),new_version:bool=Form(False)):
     if len(ident)!=32 or not all(c in '0123456789abcdef' for c in ident):raise HTTPException(404)
     folder=RUNS/ident
     if not (folder/'audio-manifest.json').exists():raise HTTPException(400,'Primero debe terminar la separación de voz.')
@@ -122,6 +122,12 @@ def seedance(ident:str,prompt:str=Form(...),sirio:list[UploadFile]=File(...),tei
     from config import seedance_provider
     limit=30 if seedance_provider()=='kie' else 9
     if sum(s in images for k in kinds.values() for s in k)>limit:raise HTTPException(400,f'Usa como máximo {limit} imágenes de referencia.')
+    from seedance_bridge import generation_state,archive_generation
+    state=generation_state(folder)
+    if state=='pending':raise HTTPException(409,'Este trabajo tiene un borrador o un 1080p generándose. Espera a que termine.')
+    if state=='done':
+        if not new_version:raise HTTPException(409,'Este trabajo ya tiene un borrador. Pulsa «Crear otra versión» para generar otro con la misma preparación.')
+        archive_generation(folder);hd_jobs.pop(ident,None)
     for old in [*folder.glob('sirio-reference*'),*folder.glob('tein-reference*')]:old.unlink()
     saved={}
     for name,uploads in groups.items():
@@ -147,6 +153,16 @@ def seedance(ident:str,prompt:str=Form(...),sirio:list[UploadFile]=File(...),tei
         (folder/'status.json').write_text(json.dumps(jobs[ident]))
     threading.Thread(target=collect,daemon=True).start()
     return {'request_id':request_id,'id':ident,'state':'running','status':jobs[ident]['status']}
+
+@app.get('/jobs/{ident}/versions')
+def versions(ident:str):
+    """Earlier drafts of this job (newest first), each with its 1080p when there was one."""
+    result=[]
+    for folder in sorted((hd_folder(ident)/'versions').glob('*'),reverse=True):
+        try:generation=json.loads((folder/'generation.json').read_text())
+        except (OSError,ValueError):generation={}
+        result.append({'name':folder.name,'draft':f'versions/{folder.name}/final-preview.mp4' if (folder/'final-preview.mp4').exists() else None,'hd':f'versions/{folder.name}/hd/final-preview.mp4' if (folder/'hd/final-preview.mp4').exists() else None,'prompt':generation.get('creative_prompt') or generation.get('prompt','')})
+    return result
 
 @app.post('/jobs/{ident}/finish')
 def finish(ident:str,video:UploadFile=File(...)):

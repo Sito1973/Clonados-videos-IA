@@ -93,6 +93,26 @@ class ReferenceTests(unittest.TestCase):
    self.assertEqual(inp['reference_image_urls'],['https://cdn.example.com/sirio-reference.png','https://cdn.example.com/sirio-2.png','https://cdn.example.com/tein-1.png'])
    self.assertIn('@Image1 and @Image2 show the primary character; @Image3 is the secondary character reference.',inp['prompt'])
 
+class VersionTests(unittest.TestCase):
+ def test_generation_state_follows_draft_and_1080p(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d);state=lambda:seedance_bridge.generation_state(p)
+   self.assertEqual(state(),'none')
+   (p/'seedance-response.json').write_text('{}');self.assertEqual(state(),'pending')
+   (p/'provider-status.json').write_text(json.dumps({'state':'fail'}));self.assertEqual(state(),'failed')
+   (p/'provider-status.json').write_text(json.dumps({'state':'success'}));self.assertEqual(state(),'done')
+   (p/'hd').mkdir();(p/'hd/response.json').write_text('{}');self.assertEqual(state(),'pending')
+   (p/'hd/provider-status.json').write_text(json.dumps({'status':'COMPLETED'}));self.assertEqual(state(),'done')
+
+ def test_archive_keeps_the_previous_generation(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d)
+   for name in ['seedance-response.json','generation.json','final-preview.mp4','sirio-reference-1.png','upload.mp4']:(p/name).write_bytes(b'x')
+   (p/'hd').mkdir();(p/'hd/final-preview.mp4').write_bytes(b'hd')
+   target=seedance_bridge.archive_generation(p)
+   self.assertTrue((target/'final-preview.mp4').exists() and (target/'hd/final-preview.mp4').exists() and (target/'sirio-reference-1.png').exists())
+   self.assertFalse((p/'seedance-response.json').exists() or (p/'hd').exists());self.assertTrue((p/'upload.mp4').exists() and (p/'sirio-reference-1.png').exists())
+
 class RetryTests(unittest.TestCase):
  def test_failed_draft_can_be_sent_again_but_pending_cannot(self):
   with tempfile.TemporaryDirectory() as d:

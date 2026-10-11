@@ -21,7 +21,7 @@ Omit `--approve` on the review command to record rejection. `repair-rgb` incurs 
 
 State the real number of subjects, exact identity mapping and reference tokens for the selected mode. Keep appearance references separate from motion/audio. Replace the whole subject in every frame, including hair and clothing outside an imperfect depth silhouette; require matching short hair if the identity has short hair. Keep camera, crop, scene, lighting and timing. Include the verified source dialogue verbatim when known, with exact timing; do not invent a transcript. Use only prepared input's embedded audio for lip synchronization. Preserve source soundtrack in the final mux regardless of generated audio.
 
-Show the creative prompt before submission. The adapter appends audio/reference instructions saved in `seedance-request.json`; inspect these as well. Prior explicit submission approval remains valid. A new paid creative variation should use a new prepared job rather than overwriting an existing request ID. HD requires explicit approval.
+Show the creative prompt before submission. The adapter appends audio/reference instructions saved in `seedance-request.json`; inspect these as well. Prior explicit submission approval remains valid. A new paid creative variation can reuse the prepared, approved job once its draft and 1080p have finished: `workflow.py submit JOB --new-version …` (or the UI's "Crear otra versión") moves the previous generation to `versions/<timestamp>/` instead of overwriting its request ID. HD requires explicit approval.
 
 ## Review and recovery
 

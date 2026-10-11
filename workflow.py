@@ -8,7 +8,7 @@ c=sub.add_parser('prepare');c.add_argument('video');c.add_argument('--start',typ
 for command in ['status','repair-rgb','resume','hd','review','submit']:
  c=sub.add_parser(command);c.add_argument('job')
  if command=='review':c.add_argument('--approve',action='store_true');c.add_argument('--fingerprint',required=True);c.add_argument('--note',required=True)
- if command=='submit':c.add_argument('--prompt-file',required=True);c.add_argument('--reference',required=True,action='append');c.add_argument('--second-reference',action='append',default=[])
+ if command=='submit':c.add_argument('--prompt-file',required=True);c.add_argument('--reference',required=True,action='append');c.add_argument('--second-reference',action='append',default=[]);c.add_argument('--new-version',action='store_true')
  if command=='resume':c.add_argument('--hd',action='store_true')
 sub.choices['prepare'].add_argument('--mode',choices=['depth','face_mesh','depth_mesh'],default='depth')
 a=p.parse_args()
@@ -63,6 +63,8 @@ elif a.command=='repair-rgb':
 else:
  from seedance_bridge import submit,submit_hd,wait_and_finish
  if a.command=='submit':
+  from seedance_bridge import generation_state,archive_generation
+  if a.new_version and generation_state(folder)=='done':print('Previous draft kept in',archive_generation(folder))
   request=submit(folder,Path(a.prompt_file).read_text(),a.reference,a.second_reference)
  elif a.command=='hd':
   request=submit_hd(folder);folder=folder/'hd'

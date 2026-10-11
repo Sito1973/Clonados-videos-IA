@@ -76,6 +76,10 @@ Pulsa **Deploy**. La primera construcción tarda varios minutos, porque instala 
 
 El video final siempre lleva el **audio original completo**. El audio generado se descarta.
 
+### Reutilizar un trabajo
+
+Para probar otras imágenes u otro prompt sin volver a preparar el video (ni pagar de nuevo la profundidad, las máscaras y la voz), abre el mismo trabajo, cambia las imágenes o el prompt y pulsa **Crear otra versión**. La app pide confirmación porque se cobra un borrador nuevo. El borrador anterior, su 1080p y sus imágenes quedan en **Versiones anteriores**, en el paso 04. No se puede mientras un borrador o un 1080p se esté generando.
+
 ## Qué cobra kie.ai
 
 - **Separación de voz** (`ai-music-api/separate-vocals`): se cobra por solicitud.

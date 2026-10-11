@@ -48,7 +48,8 @@ Do not send a new creative prompt or input files with draft completion. The prov
 - `GET /jobs/{id}`: local progress.
 - `GET /jobs/{id}/mask-review`: artifact fingerprint and approval.
 - `POST /jobs/{id}/mask-review`: `approved`, `fingerprint`, `note`.
-- `POST /jobs/{id}/seedance`: `prompt`, repeated `sirio` (primary character: one identity video or one or more images) and optional repeated `tein` (secondary character images). Files are saved as `sirio-reference-N.*`/`tein-reference-N.*` and listed in `references.json`. Images are numbered @Image1… in that order (primary first); an identity video is @Video2. Historical field names retained for compatibility.
+- `POST /jobs/{id}/seedance`: `prompt`, repeated `sirio` (primary character: one identity video or one or more images) and optional repeated `tein` (secondary character images). Files are saved as `sirio-reference-N.*`/`tein-reference-N.*` and listed in `references.json`. Images are numbered @Image1… in that order (primary first); an identity video is @Video2. Optional `new_version=1` reuses the prepared job after a finished draft: the previous generation moves to `versions/<timestamp>/` (409 while a draft or 1080p is still generating). Historical field names retained for compatibility.
+- `GET /jobs/{id}/versions`: earlier drafts (newest first) with their 1080p and creative prompt.
 - `POST /jobs/{id}/hd`, `GET /jobs/{id}/hd`: approved upgrade and progress.
 - `POST /jobs/{id}/finish`: manually upload returned `video` and restore original audio.
 - `/docs`: FastAPI-generated local endpoint documentation.

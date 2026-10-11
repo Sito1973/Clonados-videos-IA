@@ -36,8 +36,10 @@ def main():
         if not configured(key):missing.append(key)
     print('Depth + SAM modes: '+('available' if configured('REPLICATE_API_TOKEN') else 'unavailable until REPLICATE_API_TOKEN is set; Fast · Face mesh still works'))
     host=setting('MEDIA_HOST','tmpfiles')
-    if host not in ['self','tmpfiles','catbox']:
-        print('MEDIA_HOST must be self, tmpfiles or catbox');failed=True
+    if host not in ['kie','self','tmpfiles','catbox']:
+        print('MEDIA_HOST must be kie, self, tmpfiles or catbox');failed=True
+    if host=='kie' and not configured('KIE_API_KEY'):
+        print('MEDIA_HOST=kie needs KIE_API_KEY');failed=True
     if host=='self' and not setting('PUBLIC_BASE_URL').startswith('https://'):
         print('MEDIA_HOST=self needs PUBLIC_BASE_URL=https://your-domain');failed=True
     if setting('APP_HOST','127.0.0.1') not in ['127.0.0.1','localhost','::1'] and not setting('APP_PASSWORD'):

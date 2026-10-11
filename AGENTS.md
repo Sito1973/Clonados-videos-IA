@@ -21,7 +21,7 @@ Enhancor Edit accepts exactly one video: the prepared source. If the replacement
 With SEEDANCE_PROVIDER=kie there is no Edit endpoint: the prepared source is reference video 1 (@Video1), a video identity reference is @Video2, and images follow as @Image1 onward. kie.ai classifies subject replacement as video editing: it requires duration -1 (the output follows the source length) and reference videos of 4–30 s, at most 30 s in total; the adapter conforms references to its limits in the job's kie/ folder without altering reviewed artifacts. Do not claim face pass-through on kie.ai; report face-policy rejections as returned.
 
 ## Hosted deployment
-For VPS/EasyPanel installs follow `docs/DEPLOY-EASYPANEL.md`. Keys live only in the host's environment settings, never in the repository or chat. APP_PASSWORD is mandatory whenever the app binds beyond localhost; prefer MEDIA_HOST=self with PUBLIC_BASE_URL so media is served through signed, expiring links.
+For VPS/EasyPanel installs follow `docs/DEPLOY-EASYPANEL.md`. Keys live only in the host's environment settings, never in the repository or chat. APP_PASSWORD is mandatory whenever the app binds beyond localhost; with SEEDANCE_PROVIDER=kie use MEDIA_HOST=kie (kie.ai's temporary storage, deleted after 24 h, which its model backends can always reach); otherwise prefer MEDIA_HOST=self with PUBLIC_BASE_URL so media is served through signed, expiring links.
 
 
 ## Fast alternative: face mesh

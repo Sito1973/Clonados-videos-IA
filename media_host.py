@@ -10,6 +10,13 @@ def _upload_once(path,host):
         if host=='self':
             from auth import media_url
             url=media_url(path)
+        elif host=='kie':
+            # kie.ai's own temporary storage (files deleted after 24 hours), reachable by its model backends.
+            import uuid
+            from config import credential
+            r=requests.post('https://kieai.redpandaai.co/api/file-stream-upload',headers={'Authorization':'Bearer '+credential('KIE_API_KEY')},files={'file':(path.name,f)},data={'uploadPath':'genjustsu/'+uuid.uuid4().hex,'fileName':path.name},timeout=300)
+            r.raise_for_status();j=r.json();url=(j.get('data') or {}).get('downloadUrl') or ''
+            if j.get('success') is False or not url:raise ValueError('kie.ai upload failed: '+str(j.get('msg')))
         elif host=='tmpfiles':
             if path.stat().st_size>100_000_000:raise ValueError('Tmpfiles limit is 100 MB; choose another host or reduce the reference.')
             r=requests.post('https://tmpfiles.org/api/v1/upload',files={'file':(path.name,f)},data={'expire':21600},timeout=180)
@@ -26,7 +33,7 @@ def _upload_once(path,host):
             if setting('CATBOX_USERHASH'):data['userhash']=setting('CATBOX_USERHASH')
             r=requests.post('https://catbox.moe/user/api.php',data=data,files={'fileToUpload':(path.name,f)},timeout=180)
             r.raise_for_status();url=r.text.strip()
-        else:raise ValueError('MEDIA_HOST must be self, tmpfiles or catbox')
+        else:raise ValueError('MEDIA_HOST must be kie, self, tmpfiles or catbox')
     if not url.startswith('https://'):raise ValueError('Host did not return an HTTPS media URL')
     if host=='self':requests.head(url,timeout=60).raise_for_status()
     with requests.get(url,stream=True,timeout=60) as check:
@@ -42,7 +49,7 @@ def upload(path):
     primary=setting('MEDIA_HOST','tmpfiles')
     fallback=setting('MEDIA_HOST_FALLBACKS','catbox')
     hosts=list(dict.fromkeys([primary]+[h.strip() for h in fallback.split(',') if h.strip()]))
-    if any(h not in ['self','tmpfiles','catbox'] for h in hosts):raise ValueError('Supported media hosts: self, tmpfiles, catbox')
+    if any(h not in ['kie','self','tmpfiles','catbox'] for h in hosts):raise ValueError('Supported media hosts: kie, self, tmpfiles, catbox')
     errors=[]
     for host in hosts:
         for attempt in range(2):

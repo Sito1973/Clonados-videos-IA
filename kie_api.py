@@ -64,14 +64,14 @@ def conform_video(src,dst):
     src=Path(src);w,h,fps,seconds=video_info(src)
     if not 4<=seconds<=30.05:raise ValueError(f'kie.ai video editing needs reference videos of 4–30 seconds ({src.name}: {seconds:.1f} s).')
     if not .4<=w/h<=2.5:raise ValueError(f'kie.ai reference videos need an aspect ratio between 0.4 and 2.5 ({src.name}).')
-    if MIN_PIXELS<=w*h<=MAX_PIXELS and 24<=fps<=60 and src.suffix.lower() in VIDEO_TYPES and src.stat().st_size<200_000_000:return src
+    if MIN_PIXELS<=w*h<=MAX_PIXELS and 24<=fps<=60 and seconds<=30 and src.suffix.lower() in VIDEO_TYPES and src.stat().st_size<200_000_000:return src
     if w*h<MIN_PIXELS:
         scale=math.sqrt(MIN_PIXELS/(w*h));width,height=math.ceil(w*scale/2)*2,math.ceil(h*scale/2)*2
     elif w*h>MAX_PIXELS:
         scale=math.sqrt(TARGET_PIXELS/(w*h));width,height=int(w*scale/2)*2,int(h*scale/2)*2
     else:width,height=w//2*2,h//2*2
     rate=Fraction(fps).limit_denominator(1001) if 24<=fps<=60 else Fraction(24)
-    count=max(1,int(seconds*rate))
+    count=max(1,int(min(seconds,30)*rate))
     from audio_workflow import read_audio
     from pipeline import upright
     with av.open(str(src)) as inp,av.open(str(dst),'w') as out:

@@ -1,6 +1,6 @@
 # Despliegue en una VPS con EasyPanel
 
-Esta guía instala Genjustsu en tu VPS con EasyPanel. La app queda protegida con contraseña y usa **kie.ai** para Seedance 2.5 y para separar la voz. Tus videos no se suben a hosts públicos: kie.ai los descarga desde tu propio dominio mediante enlaces secretos que caducan.
+Esta guía instala Genjustsu en tu VPS con EasyPanel. La app queda protegida con contraseña y usa **kie.ai** para Seedance 2.5. Tus videos no se suben a hosts públicos: van al almacenamiento temporal de kie.ai, que los borra a las 24 horas.
 
 ## Antes de empezar
 
@@ -28,7 +28,7 @@ AUDIO_SEPARATION=kie
 KIE_API_KEY=pega-aqui-tu-clave-de-kie
 APP_PASSWORD=una-contrasena-larga-y-unica
 PUBLIC_BASE_URL=https://video.tudominio.com
-MEDIA_HOST=self
+MEDIA_HOST=kie
 MEDIA_HOST_FALLBACKS=
 ```
 
@@ -44,7 +44,8 @@ MEDIA_LINK_HOURS=168
 ```
 
 - `PUBLIC_BASE_URL` debe ser exactamente tu dominio, con `https://` y sin barra al final.
-- `MEDIA_HOST=self` con `MEDIA_HOST_FALLBACKS=` vacío garantiza que nada se suba a tmpfiles ni a catbox.
+- `MEDIA_HOST=kie` sube tus archivos al almacenamiento temporal de kie.ai, desde donde sus servidores los descargan sin problemas. kie.ai los borra a las 24 horas, así que **pide el 1080p dentro de ese plazo**. Con `MEDIA_HOST_FALLBACKS=` vacío, nada se sube a tmpfiles ni a catbox.
+- Alternativa: `MEDIA_HOST=self` sirve los archivos desde tu propio dominio con enlaces secretos. Puede fallar si los servidores de ByteDance no llegan a tu VPS (error `File processing failed, please check the URL`).
 - Si cambias `APP_PASSWORD`, todas las sesiones abiertas se cierran.
 
 ## 3. Volumen persistente
@@ -94,6 +95,7 @@ Cuando haya cambios en la rama, pulsa **Deploy** de nuevo, o activa *Auto Deploy
 | Síntoma | Causa probable |
 |---|---|
 | El login se repite una y otra vez | Entraste por `http://` en vez de `https://`, o `PUBLIC_BASE_URL` no coincide con el dominio. |
+| `File processing failed, please check the URL` | El proveedor no pudo descargar tus archivos. Usa `MEDIA_HOST=kie`. |
 | `All configured media hosts failed (self: ...)` | `PUBLIC_BASE_URL` es incorrecto, el DNS aún no se propagó o HTTPS no está activo. Comprueba que `PUBLIC_BASE_URL/health` abre en tu navegador. |
 | `Depth modes need REPLICATE_API_TOKEN` | Usa **Fast · Face mesh** o añade un token de Replicate. |
 | `kie.ai rejected the task (402)` | No tienes crédito suficiente en kie.ai. |

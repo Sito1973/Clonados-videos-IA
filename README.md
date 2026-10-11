@@ -55,7 +55,7 @@ No local model weights or GPU are needed for the default hosted setup. Python pa
 The included `Dockerfile` runs the app on a server behind your own HTTPS domain:
 
 - **Login** with `APP_PASSWORD` (required whenever the app binds beyond localhost).
-- **Signed media links** (`MEDIA_HOST=self` + `PUBLIC_BASE_URL`): providers download inputs from your domain through expiring links instead of public file hosts.
+- **Private media handoff**: with kie.ai, `MEDIA_HOST=kie` uploads inputs to kie.ai's temporary storage (deleted after 24 hours). Otherwise `MEDIA_HOST=self` + `PUBLIC_BASE_URL` lets providers download inputs from your domain through signed, expiring links. Neither uses public file hosts.
 - **Provider callbacks** on the same domain; no cloudflared tunnel needed.
 - **kie.ai** as an alternative provider: `SEEDANCE_PROVIDER=kie` uses Seedance 2.5 (480p draft, then the approved draft at 1080p) and `AUDIO_SEPARATION=kie` replaces Demucs. Depth and SAM 3 modes still need a Replicate token; Fast · Face mesh does not.
 
@@ -167,7 +167,7 @@ For setup with all three preparation modes, also install Python 3.12 and run `ba
 | Segmentation | Replicate `lucataco/sam3-video`; raw per-frame masks and mandatory visual review |
 | Face mesh | Local Google MediaPipe Face Landmarker; saved landmarks and overlay, isolated Python 3.12 worker environment |
 | Generation | Enhancor Seedance (Edit for image references, Omni for video references) or kie.ai Seedance 2.5 reference-to-video (`SEEDANCE_PROVIDER=kie`); draft first, approved 1080p upgrade |
-| Media hosting | Signed links from your own domain (`MEDIA_HOST=self`), or Tmpfiles with configurable Catbox fallback; direct-link checks before generation |
+| Media hosting | kie.ai temporary storage (`MEDIA_HOST=kie`), signed links from your own domain (`MEDIA_HOST=self`), or Tmpfiles with configurable Catbox fallback; direct-link checks before generation |
 | Completion | Persisted job files and polling; provider callbacks on `PUBLIC_BASE_URL`, or a callback-only Cloudflare Quick Tunnel locally |
 | Agent workflow | Included AGENTS.md, setup runbook, skill and CLI; a user-supplied coding agent performs visual QA |
 

@@ -6,7 +6,7 @@ Base URL: `https://api.kie.ai/api/v1/jobs/`
 Authentication: `Authorization: Bearer KIE_API_KEY` (server-side only).
 kie.ai answers HTTP 200 even for errors: the adapter checks the body `code` (401 key, 402 credits, 422 input, 429 rate limit, 500 provider). A rejected request saves `submission-error.json` and is never retried automatically.
 
-Enable it with `SEEDANCE_PROVIDER=kie` and/or `AUDIO_SEPARATION=kie`, plus `KIE_API_KEY`. Media reaches kie.ai as public HTTPS URLs; with `MEDIA_HOST=self` and `PUBLIC_BASE_URL` they are signed, expiring links served by this app (see [MEDIA-HOSTING.md](MEDIA-HOSTING.md)).
+Enable it with `SEEDANCE_PROVIDER=kie` and/or `AUDIO_SEPARATION=kie`, plus `KIE_API_KEY`. Media reaches kie.ai as HTTPS URLs. Use `MEDIA_HOST=kie`: files go to kie.ai's File Upload API (`POST https://kieai.redpandaai.co/api/file-stream-upload`, multipart `file`, `uploadPath`, `fileName`; the response holds `data.downloadUrl`), so kie.ai's model backends fetch from its own storage. A video-edit draft whose inputs were served from a VPS (`MEDIA_HOST=self`) was observed to fail with `File processing failed, please check the URL`. kie.ai deletes uploads after 24 hours; request the 1080p within that window. See [MEDIA-HOSTING.md](MEDIA-HOSTING.md).
 
 ## Draft — POST createTask, model `bytedance/seedance-2-5`
 

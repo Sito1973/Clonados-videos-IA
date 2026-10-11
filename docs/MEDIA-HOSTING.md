@@ -2,6 +2,10 @@
 
 Seedance providers (Enhancor or kie.ai) must fetch direct HTTPS media. Replicate preprocessing uses Replicate's `/v1/files` upload API with your token. Provider references use the selected host below. URLs and request bodies stay in each local run; do not share run folders with the clean project.
 
+## kie.ai storage (recommended with SEEDANCE_PROVIDER=kie)
+
+`MEDIA_HOST=kie` with `KIE_API_KEY`. Each file is streamed to kie.ai's File Upload API (`https://kieai.redpandaai.co/api/file-stream-upload`) under a random `genjustsu/<id>` path, and the returned `data.downloadUrl` is passed to the model. kie.ai's backends fetch from their own storage, so the task does not depend on those backends reaching your server (a video-edit draft served from a VPS was observed to fail with `File processing failed, please check the URL`). kie.ai deletes the files after 24 hours, so request the 1080p within that window. The URL is checked once before any generation call.
+
 ## Self (signed links from your deployment)
 
 `MEDIA_HOST=self` with `PUBLIC_BASE_URL=https://your-domain`. Nothing is uploaded elsewhere: the app serves the one requested run file at `/media/EXPIRY/SIGNATURE/JOB/FILE`, an HMAC-signed link valid for `MEDIA_LINK_HOURS` (default 168, matching how long a draft can be completed). Links outside `runs/`, expired or altered links return 404; everything else stays behind the login. The uploader fetches each link once to confirm the domain serves it. Set `MEDIA_HOST_FALLBACKS=` empty so a failure never falls back to a public host. The signing key is `APP_SECRET` or a generated `runs/.app-secret`; keep `runs/` on a persistent volume.

@@ -122,6 +122,26 @@ class ConformTests(unittest.TestCase):
    wide=Path(d)/'wide.png';Image.new('RGB',(1200,400)).save(wide)
    with self.assertRaisesRegex(ValueError,'aspect'):kie_api.conform_image(wide,Path(d)/'x.jpg')
 
+class KieStorageTests(unittest.TestCase):
+ def test_kie_media_host_uploads_to_kie_storage(self):
+  import media_host
+  with tempfile.TemporaryDirectory() as d:
+   path=Path(d)/'seedance-input.mp4';path.write_bytes(b'\x00\x00\x00 ftypisom')
+   uploaded=Mock();uploaded.json.return_value={'success':True,'code':200,'data':{'downloadUrl':'https://tempfile.redpandaai.co/kieai/1/seedance-input.mp4'}}
+   media=Mock();media.headers={'Content-Type':'video/mp4'};media.iter_content.return_value=iter([b'\x00\x00\x00 ftypisom'])
+   context=Mock();context.__enter__=Mock(return_value=media);context.__exit__=Mock(return_value=False)
+   settings=lambda k,d='':{'MEDIA_HOST':'kie','MEDIA_HOST_FALLBACKS':''}.get(k,d)
+   with patch('media_host.setting',side_effect=settings),patch('config.credential',return_value='key'),patch('media_host.requests.post',return_value=uploaded) as post,patch('media_host.requests.get',return_value=context):
+    self.assertEqual(media_host.upload(path),'https://tempfile.redpandaai.co/kieai/1/seedance-input.mp4')
+   self.assertEqual(post.call_args.args[0],'https://kieai.redpandaai.co/api/file-stream-upload')
+   self.assertEqual(post.call_args.kwargs['headers'],{'Authorization':'Bearer key'})
+
+ def test_source_just_over_30_seconds_is_cut_for_the_provider(self):
+  with tempfile.TemporaryDirectory() as d:
+   src=Path(d)/'in.mp4';make_video(src,320,240,30.05)
+   out=kie_api.conform_video(src,Path(d)/'out.mp4')
+   self.assertNotEqual(out,src);self.assertLessEqual(kie_api.video_info(out)[3],30.0)
+
 class RotationTests(unittest.TestCase):
  def test_phone_rotation_is_applied(self):
   import shutil,subprocess

@@ -20,7 +20,7 @@ def secret():
         except FileExistsError:pass
         finally:temporary.unlink(missing_ok=True)
     value=path.read_text().strip()
-    if len(value)<32:raise RuntimeError('runs/.app-secret is invalid. Delete it to create a new one.')
+    if len(value)<32:raise RuntimeError('runs/.app-secret no es válido. Bórralo para crear uno nuevo.')
     return value.encode()
 
 def sign(message):return hmac.new(secret(),message.encode(),hashlib.sha256).hexdigest()
@@ -62,9 +62,9 @@ def callback_url():return public_base()+callback_path() if public_base() else ''
 
 def media_url(path,hours=None):
     """Unguessable, expiring link so a provider can fetch one run file. Never exposes other files."""
-    if not public_base():raise ValueError('MEDIA_HOST=self needs PUBLIC_BASE_URL=https://your-domain.')
+    if not public_base():raise ValueError('MEDIA_HOST=self necesita PUBLIC_BASE_URL=https://tu-dominio.')
     try:relative=Path(path).resolve().relative_to(RUNS.resolve()).as_posix()
-    except ValueError:raise ValueError('Only files inside runs/ can be shared with a provider.') from None
+    except ValueError:raise ValueError('Solo se pueden compartir con un proveedor archivos de runs/.') from None
     expires=int(time.time()+3600*float(hours or setting('MEDIA_LINK_HOURS','168')))
     return f'{public_base()}/media/{expires}/{sign(f"media|{expires}|{relative}")}/{quote(relative)}'
 

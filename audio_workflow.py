@@ -7,7 +7,7 @@ RATE=44100
 def read_audio(path):
     parts=[];res=av.AudioResampler(format='fltp',layout='stereo',rate=RATE)
     with av.open(str(path)) as c:
-        if not c.streams.audio:raise ValueError('Source has no audio track.')
+        if not c.streams.audio:raise ValueError('El video no tiene pista de audio.')
         for f in c.decode(audio=0):
             parts.extend(x.to_ndarray() for x in res.resample(f))
         parts.extend(x.to_ndarray() for x in res.resample(None))
@@ -24,25 +24,25 @@ def write_audio(path,a):
 def separate(src,folder,status=print):
     folder=Path(folder)
     if (folder/'audio-manifest.json').exists():return
-    status('Audio · extracting original track');original=read_audio(src);write_audio(folder/'original-audio.wav',original)
+    status('Audio · extrayendo la pista original');original=read_audio(src);write_audio(folder/'original-audio.wav',original)
     from config import separation_provider
     if separation_provider()=='kie':return _separate_kie(folder,original,status)
     token=os.getenv('REPLICATE_API_TOKEN')
-    if not token:raise ValueError('REPLICATE_API_TOKEN is required for audio separation.')
+    if not token:raise ValueError('La separación de voz con Demucs necesita REPLICATE_API_TOKEN.')
     headers={'Authorization':'Bearer '+token}
     with (folder/'original-audio.wav').open('rb') as f:r=requests.post('https://api.replicate.com/v1/files',headers=headers,files={'content':f},timeout=120)
-    r.raise_for_status();url=r.json()['urls']['get'];status('Audio · separating vocals and original music')
+    r.raise_for_status();url=r.json()['urls']['get'];status('Audio · separando la voz y la música original')
     r=requests.post('https://api.replicate.com/v1/predictions',headers=headers,json={'version':'25a173108cff36ef9f80f854c162d01df9e6528be175794b81158fa03836d953','input':{'audio':url,'model_name':'htdemucs','output_format':'wav'}},timeout=60);r.raise_for_status();j=r.json()
     (folder/'audio-prediction.json').write_text(json.dumps(j,indent=2))
     for _ in range(180):
         if j['status'] in ['succeeded','failed','canceled']:break
         time.sleep(5);r=requests.get(j['urls']['get'],headers=headers,timeout=30);r.raise_for_status();j=r.json()
-    if j['status']!='succeeded':raise RuntimeError('Audio separation: '+str(j.get('error') or j['status']))
+    if j['status']!='succeeded':raise RuntimeError('Separación de voz: '+str(j.get('error') or j['status']))
     stems={}
     for name,url in j['output'].items():
         if not url:continue
         r=requests.get(url,timeout=120);r.raise_for_status();p=folder/(name+'.wav');p.write_bytes(r.content);stems[name]=read_audio(p)
-    if 'vocals' not in stems or not any(n!='vocals' for n in stems):raise ValueError('Separation returned incomplete stems.')
+    if 'vocals' not in stems or not any(n!='vocals' for n in stems):raise ValueError('La separación devolvió pistas incompletas.')
     music=np.zeros_like(original)
     for name,a in stems.items():
         if name!='vocals':n=min(music.shape[1],a.shape[1]);music[:,:n]+=a[:,:n]
@@ -55,8 +55,8 @@ def _separate_kie(folder,original,status):
     from media_host import upload
     from kie_api import create,wait,result_urls
     source=folder/'original-audio.wav'
-    if source.stat().st_size>20_000_000:raise ValueError('kie.ai vocal separation accepts up to 20 MB of audio.')
-    status('Audio · separating vocals and original music with kie.ai')
+    if source.stat().st_size>20_000_000:raise ValueError('La separación de voz de kie.ai admite hasta 20 MB de audio.')
+    status('Audio · separando la voz y la música original con kie.ai')
     j=create({'model':'ai-music-api/separate-vocals','input':{'audio_url':upload(source),'type':'separate_vocal'}})
     task=j['data']['taskId'];saved=folder/'audio-prediction.json'
     saved.write_text(json.dumps({'provider':'kie','taskId':task,'response':j},indent=2))
@@ -67,7 +67,7 @@ def _separate_kie(folder,original,status):
         kind='music' if 'instrumental' in lower else 'vocals' if 'vocal' in lower else None
         if not kind or kind in stems:continue
         r=requests.get(url,timeout=120);r.raise_for_status();p=folder/('kie-'+kind+Path(name).suffix.lower());p.write_bytes(r.content);stems[kind]=read_audio(p)
-    if set(stems)!={'vocals','music'}:raise ValueError('kie.ai separation returned incomplete stems.')
+    if set(stems)!={'vocals','music'}:raise ValueError('La separación de kie.ai devolvió pistas incompletas.')
     n=original.shape[1];fit=lambda a:np.pad(a,((0,0),(0,max(0,n-a.shape[1]))))[:,:n]
     write_audio(folder/'vocals.wav',fit(stems['vocals']));write_audio(folder/'music.wav',np.clip(fit(stems['music']),-1,1))
     (folder/'audio-manifest.json').write_text(json.dumps({'prediction_id':task,'provider':'kie','seedance_video':'composite-silent.mp4','seedance_audio':'vocals.wav','final_audio':'upload.mp4 (entire original audio track)','discard_seedance_audio':True,'separation':'kie.ai ai-music-api/separate-vocals (separate_vocal); residual music or vocal bleed is possible'},indent=2))
@@ -85,7 +85,7 @@ def _retime(generated,target,seconds):
         for frame in inp.decode(video=0):
             if written>=count:break
             last=frame.to_ndarray(format='rgb24');put(last);written+=1
-        if last is None:raise ValueError('Generated video has no frames.')
+        if last is None:raise ValueError('El video generado no tiene fotogramas.')
         while written<count:put(last);written+=1
         for packet in stream.encode():out.mux(packet)
 
@@ -104,11 +104,11 @@ def finish_preview(generated,folder):
         generated=aligned
     # Copy original compressed audio packets, preserving the complete source mix.
     with av.open(str(generated)) as inp,av.open(str(folder/'upload.mp4')) as source_audio,av.open(str(target),'w') as out:
-        if not source_audio.streams.audio:raise ValueError('Original source has no audio track.')
+        if not source_audio.streams.audio:raise ValueError('El video original no tiene pista de audio.')
         video=inp.streams.video[0];audio=source_audio.streams.audio[0]
         vd=float(video.duration*video.time_base) if video.duration else float(inp.duration/av.time_base)
         sd=float(source_audio.duration/av.time_base)
-        if abs(vd-sd)>.25:raise ValueError('Generated duration differs from original audio; refusing to trim, loop or stretch it.')
+        if abs(vd-sd)>.25:raise ValueError('La duración del video generado no coincide con el audio original; el audio no se recorta, repite ni estira.')
         vs=out.add_stream_from_template(video);astream=out.add_stream_from_template(audio)
         for p in inp.demux(video=0):
             if p.dts is not None:p.stream=vs;out.mux(p)
@@ -120,7 +120,7 @@ def prepare_seedance_video(folder, semitones=3):
     """Embed +3-semitone isolated vocals into the colored-depth composite."""
     import subprocess,shutil
     folder=Path(folder);binary=shutil.which('rubberband')
-    if not binary:raise RuntimeError('Rubber Band is required for pitch shifting.')
+    if not binary:raise RuntimeError('Falta Rubber Band para cambiar el tono de la voz.')
     pitched=folder/f'vocals-plus{semitones}.wav'
     subprocess.run([binary,'--fine','--pitch',str(semitones),'--time','1',str(folder/'vocals.wav'),str(pitched)],check=True,capture_output=True)
     original=read_audio(folder/'vocals.wav');samples=read_audio(pitched)

@@ -36,4 +36,4 @@ class MediaTests(unittest.TestCase):
     c,s=writer(p/(name+'.mp4'),64,64)
     for i in range(2):put(c,s,np.zeros((64,64,3),dtype=np.uint8),i)
     finish(c,s)
-   with self.assertRaisesRegex(ValueError,'Frame alignment'):composite(p/'original.mp4',p/'depth.mp4',p/'masks',p)
+   with self.assertRaisesRegex(ValueError,'no coinciden'):composite(p/'original.mp4',p/'depth.mp4',p/'masks',p)

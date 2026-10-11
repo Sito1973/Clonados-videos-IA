@@ -4,11 +4,11 @@ from pathlib import Path
 from config import ROOT,load_env
 load_env()
 p=argparse.ArgumentParser();sub=p.add_subparsers(dest='command',required=True)
-c=sub.add_parser('prepare');c.add_argument('video');c.add_argument('--subject',default='person');c.add_argument('--provider',default='replicate',choices=['replicate','replicate-chenxwh','huggingface'])
+c=sub.add_parser('prepare');c.add_argument('video');c.add_argument('--start',type=float,default=0);c.add_argument('--end',type=float,default=0);c.add_argument('--subject',default='person');c.add_argument('--provider',default='replicate',choices=['replicate','replicate-chenxwh','huggingface'])
 for command in ['status','repair-rgb','resume','hd','review','submit']:
  c=sub.add_parser(command);c.add_argument('job')
  if command=='review':c.add_argument('--approve',action='store_true');c.add_argument('--fingerprint',required=True);c.add_argument('--note',required=True)
- if command=='submit':c.add_argument('--prompt-file',required=True);c.add_argument('--reference',required=True);c.add_argument('--second-reference')
+ if command=='submit':c.add_argument('--prompt-file',required=True);c.add_argument('--reference',required=True,action='append');c.add_argument('--second-reference',action='append',default=[])
  if command=='resume':c.add_argument('--hd',action='store_true')
 sub.choices['prepare'].add_argument('--mode',choices=['depth','face_mesh','depth_mesh'],default='depth')
 a=p.parse_args()
@@ -19,10 +19,10 @@ if a.command=='prepare':
  except ValueError as e:p.error(str(e))
  from pipeline import run
  folder=ROOT/'runs'/uuid.uuid4().hex;folder.mkdir(parents=True)
- shutil.copy2(a.video,folder/'upload.mp4')
- from pipeline import check_clip
+ from pipeline import check_clip,trim_source,VIDEO_SUFFIXES
  from config import seedance_provider
- try:check_clip(folder/'upload.mp4',4 if seedance_provider()=='kie' else 0)
+ suffix=Path(a.video).suffix.lower();original=folder/('upload-original'+(suffix if suffix in VIDEO_SUFFIXES else '.mp4'));shutil.copy2(a.video,original)
+ try:trim_source(original,folder/'upload.mp4',a.start,a.end);check_clip(folder/'upload.mp4',4 if seedance_provider()=='kie' else 0)
  except ValueError as e:shutil.rmtree(folder);p.error(str(e))
  print('JOB:',folder.name,flush=True)
  if a.mode=='face_mesh':

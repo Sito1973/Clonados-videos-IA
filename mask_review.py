@@ -14,7 +14,7 @@ def fingerprint(folder):
     if is_mesh(folder) and json.loads((Path(folder)/'workflow-mode.json').read_text()).get('mode')=='depth_mesh':names+=['depth.mp4','mask.mp4','depth-composite-silent.mp4']
     for name in names:
         path=Path(folder)/name
-        if not path.exists():raise ValueError('Prepare the video and mask before review.')
+        if not path.exists():raise ValueError('Prepara el video antes de revisarlo.')
         digest.update(name.encode())
         with path.open('rb') as f:
             for chunk in iter(lambda:f.read(1024*1024),b''):digest.update(chunk)
@@ -24,16 +24,16 @@ def state(folder):
     path=Path(folder)/'mask-review.json'
     saved=json.loads(path.read_text()) if path.exists() else {}
     try:current=fingerprint(folder)
-    except ValueError:return {'approved':False,'status':'unavailable','note':'Prepare the video first.'}
-    if saved.get('fingerprint')!=current:return {'approved':False,'status':'pending','note':'Review the entire prepared input: mask coverage for depth mode; facial tracking and overlay alignment for fast mode.','fingerprint':current}
+    except ValueError:return {'approved':False,'status':'unavailable','note':'Primero prepara el video.'}
+    if saved.get('fingerprint')!=current:return {'approved':False,'status':'pending','note':'Revisa el video preparado completo: la máscara en los modos con profundidad y el seguimiento de la malla facial en el modo rápido.','fingerprint':current}
     return saved
 
 def review(folder,approved,note,expected):
     current=fingerprint(folder)
-    if current!=expected:raise ValueError('The mask changed. Reload and review the latest preview.')
+    if current!=expected:raise ValueError('El video preparado cambió. Recarga la página y revisa la versión más reciente.')
     data={'approved':approved,'status':'approved' if approved else 'rejected','note':note,'fingerprint':current,'reviewed_at':datetime.now(timezone.utc).isoformat()}
     (Path(folder)/'mask-review.json').write_text(json.dumps(data,indent=2))
     return data
 
 def require_approved(folder):
-    if not state(folder).get('approved'):raise ValueError('Input review required: inspect the whole prepared video and approve its current artifacts before submitting.')
+    if not state(folder).get('approved'):raise ValueError('Falta la revisión: revisa el video preparado completo y apruébalo antes de enviarlo.')

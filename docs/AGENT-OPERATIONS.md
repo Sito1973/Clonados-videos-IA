@@ -5,11 +5,11 @@ Use the root `AGENTS.md` as the operational contract. Work independently through
 ## Commands
 
 ```bash
-.venv/bin/python workflow.py prepare /path/to/source.mp4 --subject person
+.venv/bin/python workflow.py prepare /path/to/source.mp4 --subject person [--start 5 --end 20]
 .venv/bin/python workflow.py status LOCAL_JOB_ID
 .venv/bin/python workflow.py repair-rgb LOCAL_JOB_ID
 .venv/bin/python workflow.py review LOCAL_JOB_ID --approve --fingerprint CURRENT_HASH --note "Who reviewed, whole-clip findings, repairs"
-.venv/bin/python workflow.py submit LOCAL_JOB_ID --prompt-file prompt.txt --reference /path/to/reference.png
+.venv/bin/python workflow.py submit LOCAL_JOB_ID --prompt-file prompt.txt --reference /path/to/face.png --reference /path/to/body.png [--second-reference /path/to/other.png]
 .venv/bin/python workflow.py resume LOCAL_JOB_ID
 .venv/bin/python workflow.py hd LOCAL_JOB_ID
 .venv/bin/python workflow.py resume LOCAL_JOB_ID --hd

@@ -16,30 +16,44 @@ def archive_failed(folder,names):
     for name in names:
         if (Path(folder)/name).exists():(Path(folder)/name).rename(target/name)
 
+def reference_roles(primary,secondary):
+    """Which @Image tags show which character, numbered in upload order: primary images first."""
+    def tags(start,count):
+        names=[f'@Image{start+i}' for i in range(count)]
+        return names[0] if count==1 else ', '.join(names[:-1])+' and '+names[-1]
+    roles=[]
+    if primary:roles.append(tags(1,primary)+(' is the only replacement character reference' if primary==1 else ' show the only replacement character') if not secondary else tags(1,primary)+(' is the primary character reference' if primary==1 else ' show the primary character'))
+    if secondary:roles.append(tags(primary+1,secondary)+(' is the secondary character reference' if secondary==1 else ' show the secondary character'))
+    return '; '.join(roles)+'.' if roles else ''
+
 def submit(folder,prompt,sirio,tein=None,status=print):
+    """sirio: one identity video or one or more images; tein: optional images of a second character."""
     folder=Path(folder)
+    primary=[Path(x) for x in (sirio if isinstance(sirio,(list,tuple)) else [sirio])]
+    secondary=[Path(x) for x in (tein if isinstance(tein,(list,tuple)) else [tein] if tein else [])]
+    video_identity=len(primary)==1 and primary[0].suffix.lower() in ['.mp4','.mov','.webm']
     from mask_review import require_approved, is_mesh
     require_approved(folder)
     if (folder/'seedance-response.json').exists():
-        if not failed_request(folder):raise ValueError('This job already has a provider response. Resume it; prepare a new job for a deliberate variation.')
+        if not failed_request(folder):raise ValueError('Este trabajo ya tiene una solicitud en curso o terminada. Para una variación, prepara un trabajo nuevo.')
         archive_failed(folder,['seedance-request.json','seedance-response.json','provider-status.json','generation.json','submission-error.json'])
     service=seedance_provider()
-    if service not in ['enhancor','kie']:raise ValueError('SEEDANCE_PROVIDER must be enhancor or kie.')
+    if service not in ['enhancor','kie']:raise ValueError('SEEDANCE_PROVIDER debe ser enhancor o kie.')
     key=credential('KIE_API_KEY' if service=='kie' else 'ENHANCOR_API_KEY')
-    if service=='enhancor' and not setting('ENHANCOR_WEBHOOK_URL'):raise ValueError('Webhook URL required. Install cloudflared and restart the app, or set ENHANCOR_WEBHOOK_URL.')
-    if not (folder/'audio-manifest.json').exists():raise ValueError('Audio separation must complete before submission.')
+    if service=='enhancor' and not setting('ENHANCOR_WEBHOOK_URL'):raise ValueError('Enhancor necesita un webhook: configura PUBLIC_BASE_URL o ENHANCOR_WEBHOOK_URL, o instala cloudflared y reinicia.')
+    if not (folder/'audio-manifest.json').exists():raise ValueError('La separación de voz debe terminar antes de enviar.')
     from audio_workflow import prepare_seedance_video
-    status('Pitching isolated vocals +3 semitones and embedding in colored-depth video')
+    status('Subiendo la voz aislada +3 semitonos e incrustándola en el video')
     prepared=folder/'seedance-input.mp4' if is_mesh(folder) else prepare_seedance_video(folder)
-    files=[prepared,sirio]+([tein] if tein else [])
+    files=[prepared]+primary+secondary
     if service=='kie':
         from kie_api import conform_references
         files=conform_references(folder,files)
-    status('Uploading video with embedded vocals and character references')
+    status('Subiendo el video y las referencias de los personajes')
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:urls=list(pool.map(upload,files))
     p={'resolution':'1080p','output_format':'mp4','pass_faces':True,'webhook_url':setting('ENHANCOR_WEBHOOK_URL','')}
-    p.update(mode='edit',is_draft=True,aspect_ratio='adaptive',videos=[urls[0]],audios=[],images=urls[1:],prompt=prompt.replace('@Audio1', 'the audio embedded in @Video1')+'\n@Video1 contains the colored-depth composite and embedded isolated vocals pitched up three semitones, without the music bed; use its embedded audio for performance and lip synchronization. '+('@Image1 is the primary character reference; @Image2 is the secondary character reference.' if tein else '@Image1 is the only replacement character reference.'));p.pop('duration',None)
-    if Path(sirio).suffix.lower() in ['.mp4','.mov','.webm']:
+    p.update(mode='edit',is_draft=True,aspect_ratio='adaptive',videos=[urls[0]],audios=[],images=urls[1:],prompt=prompt.replace('@Audio1', 'the audio embedded in @Video1')+'\n@Video1 contains the colored-depth composite and embedded isolated vocals pitched up three semitones, without the music bed; use its embedded audio for performance and lip synchronization. '+reference_roles(len(primary),len(secondary)));p.pop('duration',None)
+    if video_identity:
         import av
         with av.open(str(prepared)) as source:
             seconds=float(source.duration/av.time_base)
@@ -49,7 +63,7 @@ def submit(folder,prompt,sirio,tein=None,status=print):
         p.update(mode='multi_reference',duration=str(max(4,min(30,round(seconds)))),aspect_ratio=min(ratios,key=lambda r:abs(ratios[r]-ratio)))
         p['videos']=[urls[0],urls[1]]
         p['images']=urls[2:]
-        p['prompt']=prompt+'\n@Video1 is the source edit and contains isolated vocals pitched +3 semitones. @Video2 is only the primary character visual identity reference. Use only @Video1 audio for speech timing.'
+        p['prompt']=prompt+'\n@Video1 is the source edit and contains isolated vocals pitched +3 semitones. @Video2 is only the primary character visual identity reference. Use only @Video1 audio for speech timing.'+(' '+reference_roles(0,len(secondary)) if secondary else '')
     if is_mesh(folder):
         mesh_mode=json.loads((folder/'workflow-mode.json').read_text()).get('mode')
         description='depth composite with face mesh overlay' if mesh_mode=='depth_mesh' else 'original video with face mesh overlay'
@@ -59,12 +73,12 @@ def submit(folder,prompt,sirio,tein=None,status=print):
     r=requests.post(base+'queue',headers=h,json=p,timeout=90);
     if not r.ok:
         (folder/'submission-error.json').write_text(r.text)
-        raise ValueError(f'Enhancor rejected submission ({r.status_code}): {r.text[:500]}')
+        raise ValueError(f'Enhancor rechazó el envío ({r.status_code}): {r.text[:500]}')
     j=r.json();(folder/'seedance-response.json').write_text(json.dumps(j))
     ident=j.get('requestId')
-    if not ident:raise ValueError('Seedance did not return a request ID.')
+    if not ident:raise ValueError('Seedance no devolvió un ID de solicitud.')
     (folder/'generation.json').write_text(json.dumps({'request_id':ident,'prompt':p['prompt'],'video':'seedance-result.mp4','mode':p['mode']}))
-    status('Seedance draft submitted: '+ident)
+    status('Borrador enviado a Seedance: '+ident)
     return ident
 
 def _queue_kie(folder,p,prepared,status):
@@ -84,7 +98,7 @@ def _queue_kie(folder,p,prepared,status):
     ident=j['data']['taskId']
     (folder/'seedance-response.json').write_text(json.dumps({'requestId':ident,'provider':'kie','response':j}))
     (folder/'generation.json').write_text(json.dumps({'request_id':ident,'prompt':inp['prompt'],'video':'seedance-result.mp4','mode':p['mode'],'provider':'kie','api':'kie.ai bytedance/seedance-2-5 multimodal reference-to-video','resolution':'480p','duration':inp['duration']}))
-    status('Seedance draft submitted to kie.ai: '+ident)
+    status('Borrador enviado a kie.ai: '+ident)
     return ident
 
 def _saved_provider(folder):
@@ -95,7 +109,7 @@ def _saved_provider(folder):
 
 def _download_and_restore(folder,url,status):
     r=requests.get(url,timeout=180);r.raise_for_status();(folder/'seedance-result.mp4').write_bytes(r.content)
-    status('Restoring entire original source audio · discarding generated audio')
+    status('Restaurando el audio original completo · se descarta el audio generado')
     finish_preview(folder/'seedance-result.mp4',folder)
 
 def wait_and_finish(folder,request_id,status=print):
@@ -103,7 +117,7 @@ def wait_and_finish(folder,request_id,status=print):
     if _saved_provider(folder)=='kie':
         from kie_api import wait,result_urls
         urls=result_urls(wait(request_id,save=lambda data:(folder/'provider-status.json').write_text(json.dumps(data,indent=2))))
-        if not urls:raise ValueError('Seedance result URL missing.')
+        if not urls:raise ValueError('Falta la URL del resultado de Seedance.')
         return _download_and_restore(folder,urls[0],status)
     key=credential('ENHANCOR_API_KEY')
     for _ in range(360):
@@ -111,24 +125,24 @@ def wait_and_finish(folder,request_id,status=print):
         (folder/'provider-status.json').write_text(json.dumps(j,indent=2))
         if j.get('status')=='COMPLETED':
             url=j.get('result')
-            if not isinstance(url,str) or not url.startswith('https://'):raise ValueError('Seedance result URL missing.')
+            if not isinstance(url,str) or not url.startswith('https://'):raise ValueError('Falta la URL del resultado de Seedance.')
             return _download_and_restore(folder,url,status)
-        if j.get('status') in ['FAILED','CANCELED']:raise RuntimeError('Seedance failed: '+str(j.get('error') or j.get('status')))
+        if j.get('status') in ['FAILED','CANCELED']:raise RuntimeError('Seedance falló: '+str(j.get('error') or j.get('status')))
         time.sleep(10)
-    raise TimeoutError('Seedance is still pending. Request ID saved; do not resubmit automatically.')
+    raise TimeoutError('Seedance sigue en proceso. El ID quedó guardado: retoma la descarga, no lo reenvíes.')
 
 
 def submit_hd(folder):
     """Complete the accepted draft; the provider reuses its original parameters."""
     folder=Path(folder)
     if (folder/'hd/response.json').exists():
-        if not failed_request(folder/'hd'):raise ValueError('HD already submitted. Resume its saved request.')
+        if not failed_request(folder/'hd'):raise ValueError('El 1080p ya se envió. Retoma su solicitud guardada.')
         archive_failed(folder/'hd',['request.json','response.json','provider-status.json','submission-error.json'])
     generation=json.loads((folder/'generation.json').read_text())
     original=json.loads((folder/'seedance-request.json').read_text())
     kie=generation.get('provider')=='kie'
     if not (original.get('input',{}).get('draft') if kie else original.get('is_draft')) or not (folder/'final-preview.mp4').exists():
-        raise ValueError('A completed draft is required before generating 1080p.')
+        raise ValueError('Necesitas un borrador terminado antes de generar el 1080p.')
     if kie:
         payload={'model':'bytedance/seedance-2-5-draft','input':{'draft_task_id':generation['request_id'],'resolution':'1080p','output_format':'mp4'}}
         if original.get('callBackUrl'):payload['callBackUrl']=original['callBackUrl']
@@ -153,5 +167,5 @@ def submit_hd(folder):
     response.raise_for_status();data=response.json()
     (hd/'response.json').write_text(json.dumps(data))
     ident=data.get('requestId')
-    if not ident:raise ValueError('Enhancor did not return a request ID.')
+    if not ident:raise ValueError('Enhancor no devolvió un ID de solicitud.')
     return ident

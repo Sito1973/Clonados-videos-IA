@@ -18,7 +18,7 @@ if '--depth' in sys.argv:
  with av.open(str(root/'depth-composite-silent.mp4')) as bg:background=[f.to_image() for f in bg.decode(video=0)]
 with mp.tasks.vision.FaceLandmarker.create_from_options(opts) as detector, av.open(str(source)) as inp, av.open(str(root/'composite-silent.mp4'),'w') as out:
  stream=inp.streams.video[0]
- if background and (len(background)!=stream.frames or background[0].size!=(stream.width,stream.height)):raise ValueError('Depth and original frame count or dimensions differ; rebuild the depth composite before overlay.')
+ if background and (len(background)!=stream.frames or background[0].size!=(stream.width,stream.height)):raise ValueError('La profundidad y el original no coinciden en fotogramas o tamaño: vuelve a preparar el video.')
  vs=out.add_stream('libx264',rate=24);vs.width=stream.width;vs.height=stream.height;vs.pix_fmt='yuv420p';vs.options={'crf':'18'}
  for i,f in enumerate(inp.decode(video=0)):
   im=f.to_image();x0=int(im.width*.25);y0=0;cw=int(im.width*.5);ch=int(im.height*.65);crop=im.crop((x0,y0,x0+cw,ch));result=detector.detect_for_video(mp.Image(image_format=mp.ImageFormat.SRGB,data=np.array(crop)),round(i*1000/24));im=background[i].copy() if background else im;d=ImageDraw.Draw(im);counts.append(len(result.face_landmarks))
@@ -36,4 +36,4 @@ print({'frames':len(counts),'tracked':sum(x>0 for x in counts),'missing':[i for 
 
 (root/'face-landmarks.json').write_text(json.dumps({'fps':24,'frames':saved}))
 (root/'face-tracking.json').write_text(json.dumps({'frames':len(counts),'tracked':sum(bool(x) for x in counts),'missing_frames':[i for i,x in enumerate(counts) if not x]}))
-if not counts or not all(counts):raise RuntimeError('Face tracking gaps: inspect face-tracking.json and repair before submitting.')
+if not counts or not all(counts):raise RuntimeError('La cara no se detecta en algunos fotogramas (ver face-tracking.json). Usa un clip con una sola cara visible y centrada todo el tiempo.')

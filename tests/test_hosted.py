@@ -1,4 +1,4 @@
-import os,unittest,shutil,subprocess,sys,time
+import os,unittest,shutil,subprocess,sys,time,json
 from pathlib import Path
 from unittest.mock import patch,Mock
 from fastapi.testclient import TestClient
@@ -81,7 +81,38 @@ class HostedTests(unittest.TestCase):
   with tempfile.TemporaryDirectory() as d:
    make_video(Path(d)/'short.mp4',320,240,3)
    reply=self.client.post('/jobs',files={'video':('short.mp4',(Path(d)/'short.mp4').read_bytes(),'video/mp4')},data={'mode':'face_mesh'})
-  self.assertEqual(reply.status_code,400);self.assertIn('at least 4 seconds',reply.json()['detail'])
+  self.assertEqual(reply.status_code,400);self.assertIn('al menos 4 segundos',reply.json()['detail'])
+
+ def wait_for(self,ident):
+  for _ in range(50):
+   if self.client.get('/jobs/'+ident).json()['state']!='running':return
+   time.sleep(.1)
+
+ def test_upload_is_trimmed_before_preparation(self):
+  import tempfile,av
+  from test_kie import make_video
+  self.login()
+  with tempfile.TemporaryDirectory() as d:
+   make_video(Path(d)/'long.mp4',320,240,8)
+   reply=self.client.post('/jobs',files={'video':('long.mp4',(Path(d)/'long.mp4').read_bytes(),'video/mp4')},data={'mode':'face_mesh','trim_start':'2','trim_end':'6.5'})
+  self.assertEqual(reply.status_code,200);ident=reply.json()['id'];folder=auth.RUNS/ident
+  try:
+   self.wait_for(ident)
+   with av.open(str(folder/'upload.mp4')) as c:self.assertAlmostEqual(float(c.duration/av.time_base),4.5,delta=.1)
+   self.assertTrue((folder/'upload-original.mp4').exists());self.assertEqual(json.loads((folder/'trim.json').read_text())['start'],2)
+  finally:shutil.rmtree(folder,ignore_errors=True)
+
+ def test_several_references_per_character(self):
+  self.login();(self.job/'audio-manifest.json').write_text('{}')
+  png=lambda:('ref.png',b'image','image/png')
+  with patch('mask_review.require_approved'),patch('seedance_bridge.submit',return_value='task-1') as submit,patch('seedance_bridge.wait_and_finish'):
+   reply=self.client.post(f'/jobs/{self.job.name}/seedance',data={'prompt':'Replace'},files=[('sirio',png()),('sirio',('b.jpg',b'image','image/jpeg')),('tein',png())])
+   self.assertEqual(reply.status_code,200)
+   primary,secondary=submit.call_args.args[2:4]
+   self.assertEqual([p.name for p in primary],['sirio-reference-1.png','sirio-reference-2.jpg']);self.assertEqual([p.name for p in secondary],['tein-reference-1.png'])
+   self.assertEqual(json.loads((self.job/'references.json').read_text()),{'sirio':['sirio-reference-1.png','sirio-reference-2.jpg'],'tein':['tein-reference-1.png']})
+   mixed=self.client.post(f'/jobs/{self.job.name}/seedance',data={'prompt':'Replace'},files=[('sirio',('a.mp4',b'video','video/mp4')),('sirio',png())])
+  self.assertEqual(mixed.status_code,400)
 
  def test_launch_refuses_public_bind_without_password(self):
   env={**os.environ,'APP_HOST':'0.0.0.0','APP_PASSWORD':''}

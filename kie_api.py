@@ -13,7 +13,7 @@ VIDEO_TYPES=['.mp4','.mov']
 class Rejected(ValueError):
     def __init__(self,body):
         self.body=body
-        super().__init__(f"kie.ai rejected the task ({body.get('code')}): {body.get('msg')}")
+        super().__init__(f"kie.ai rechazó la tarea ({body.get('code')}): {body.get('msg')}")
 
 def _headers():return {'Authorization':'Bearer '+credential('KIE_API_KEY')}
 
@@ -27,7 +27,7 @@ def create(body):
 
 def record(task_id):
     r=requests.get(BASE+'recordInfo',headers=_headers(),params={'taskId':task_id},timeout=30);r.raise_for_status();j=r.json()
-    if j.get('code')!=200 or not isinstance(j.get('data'),dict):raise RuntimeError(f"kie.ai status error ({j.get('code')}): {j.get('msg')}")
+    if j.get('code')!=200 or not isinstance(j.get('data'),dict):raise RuntimeError(f"Error al consultar kie.ai ({j.get('code')}): {j.get('msg')}")
     return j['data']
 
 def result_urls(data):
@@ -47,9 +47,9 @@ def wait(task_id,save=None,attempts=360,delay=10):
             time.sleep(delay);continue
         if save:save(data)
         if data.get('state')=='success':return data
-        if data.get('state')=='fail':raise RuntimeError('kie.ai task failed: '+str(data.get('failMsg') or data.get('failCode') or 'no reason given'))
+        if data.get('state')=='fail':raise RuntimeError('La tarea de kie.ai falló: '+str(data.get('failMsg') or data.get('failCode') or 'sin motivo'))
         time.sleep(delay)
-    raise TimeoutError('kie.ai task is still pending. Task ID saved; resume collection, do not resubmit automatically.')
+    raise TimeoutError('La tarea de kie.ai sigue en proceso. El ID quedó guardado: retoma la descarga, no la reenvíes.')
 
 def video_info(path):
     """Display width and height (after any stored rotation), frame rate and seconds."""
@@ -62,8 +62,8 @@ def video_info(path):
 def conform_video(src,dst):
     """src when it already meets the reference-video limits; otherwise an H.264/AAC copy scaled and retimed to meet them."""
     src=Path(src);w,h,fps,seconds=video_info(src)
-    if not 4<=seconds<=30.05:raise ValueError(f'kie.ai video editing needs reference videos of 4–30 seconds ({src.name}: {seconds:.1f} s).')
-    if not .4<=w/h<=2.5:raise ValueError(f'kie.ai reference videos need an aspect ratio between 0.4 and 2.5 ({src.name}).')
+    if not 4<=seconds<=30.05:raise ValueError(f'La edición de video de kie.ai necesita videos de 4 a 30 segundos ({src.name}: {seconds:.1f} s).')
+    if not .4<=w/h<=2.5:raise ValueError(f'kie.ai necesita videos con una proporción entre 0,4 y 2,5 ({src.name}).')
     if MIN_PIXELS<=w*h<=MAX_PIXELS and 24<=fps<=60 and seconds<=30 and src.suffix.lower() in VIDEO_TYPES and src.stat().st_size<200_000_000:return src
     if w*h<MIN_PIXELS:
         scale=math.sqrt(MIN_PIXELS/(w*h));width,height=math.ceil(w*scale/2)*2,math.ceil(h*scale/2)*2
@@ -100,7 +100,7 @@ def conform_image(src,dst):
     src=Path(src)
     with Image.open(src) as im:
         w,h=im.size
-        if not .4<=w/h<=2.5:raise ValueError(f'kie.ai reference images need an aspect ratio between 0.4 and 2.5 ({src.name}).')
+        if not .4<=w/h<=2.5:raise ValueError(f'kie.ai necesita imágenes con una proporción entre 0,4 y 2,5 ({src.name}).')
         scale=max(1,300/min(w,h))*min(1,6000/max(w,h))
         if scale==1 and src.stat().st_size<30_000_000 and src.suffix.lower() in ['.png','.jpg','.jpeg','.webp']:return src
         image=im.convert('RGBA');flat=Image.new('RGB',image.size,'white');flat.paste(image,mask=image.getchannel('A'))
@@ -114,5 +114,5 @@ def conform_references(folder,files):
         name='source' if i==0 else f'reference-{i}'
         result.append(conform_video(path,out/(name+'.mp4')) if path.suffix.lower() in VIDEO_TYPES+['.webm'] else conform_image(path,out/(name+'.jpg')))
     total=sum(video_info(p)[3] for p in result if p.suffix.lower() in VIDEO_TYPES)
-    if total>30.05:raise ValueError(f'kie.ai accepts at most 30 s of reference video in total; these add up to {total:.1f} s. Use a shorter identity video.')
+    if total>30.05:raise ValueError(f'kie.ai acepta como máximo 30 s de video de referencia en total y aquí suman {total:.1f} s. Usa un video de personaje más corto.')
     return result

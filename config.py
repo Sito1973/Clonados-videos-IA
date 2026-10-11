@@ -26,7 +26,7 @@ def setting(name,default=''):
 
 def credential(name):
     value=setting(name)
-    if not value:raise ValueError(f'Set {name} in this project’s .env file.')
+    if not value:raise ValueError(f'Falta {name}: configúralo en .env o en las variables de entorno (Environment en EasyPanel).')
     return value
 
 def seedance_provider():
@@ -44,7 +44,7 @@ def separation_provider():
 def require_mode(mode):
     """Refuse a preparation that would stop midway after billed calls."""
     if mode!='face_mesh' and not setting('REPLICATE_API_TOKEN'):
-        raise ValueError('Depth modes need REPLICATE_API_TOKEN: depth and SAM 3 masks run on Replicate. Use Fast · Face mesh or add a Replicate token.')
+        raise ValueError('Los modos con profundidad necesitan REPLICATE_API_TOKEN: la profundidad y las máscaras SAM 3 se generan en Replicate. Usa Rápido · Malla facial o añade el token de Replicate.')
     separation=separation_provider()
-    if separation not in ['replicate','kie']:raise ValueError('AUDIO_SEPARATION must be replicate or kie.')
+    if separation not in ['replicate','kie']:raise ValueError('AUDIO_SEPARATION debe ser replicate o kie.')
     credential('KIE_API_KEY' if separation=='kie' else 'REPLICATE_API_TOKEN')

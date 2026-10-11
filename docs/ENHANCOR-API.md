@@ -44,11 +44,11 @@ Do not send a new creative prompt or input files with draft completion. The prov
 
 ## Local routes
 
-- `POST /jobs`: multipart `video`, `prompt` (segmentation subject), `provider`.
+- `POST /jobs`: multipart `video`, `prompt` (segmentation subject), `provider`, `mode`, optional `trim_start`/`trim_end` in seconds (the upload is kept as `upload-original.*`; `upload.mp4` is the selected part with its audio packets copied, recorded in `trim.json`).
 - `GET /jobs/{id}`: local progress.
 - `GET /jobs/{id}/mask-review`: artifact fingerprint and approval.
 - `POST /jobs/{id}/mask-review`: `approved`, `fingerprint`, `note`.
-- `POST /jobs/{id}/seedance`: `prompt`, `sirio` (primary reference), optional `tein` (second image). Historical field names retained for compatibility.
+- `POST /jobs/{id}/seedance`: `prompt`, repeated `sirio` (primary character: one identity video or one or more images) and optional repeated `tein` (secondary character images). Files are saved as `sirio-reference-N.*`/`tein-reference-N.*` and listed in `references.json`. Images are numbered @Image1… in that order (primary first); an identity video is @Video2. Historical field names retained for compatibility.
 - `POST /jobs/{id}/hd`, `GET /jobs/{id}/hd`: approved upgrade and progress.
 - `POST /jobs/{id}/finish`: manually upload returned `video` and restore original audio.
 - `/docs`: FastAPI-generated local endpoint documentation.

@@ -76,6 +76,23 @@ class KieSeedanceTests(unittest.TestCase):
   with patch('kie_api.record',return_value={'state':'fail','failMsg':'reference rejected'}):
    with self.assertRaisesRegex(RuntimeError,'reference rejected'):kie_api.wait('task-1')
 
+class ReferenceTests(unittest.TestCase):
+ def test_images_are_numbered_per_character(self):
+  self.assertEqual(seedance_bridge.reference_roles(1,0),'@Image1 is the only replacement character reference.')
+  self.assertEqual(seedance_bridge.reference_roles(2,2),'@Image1 and @Image2 show the primary character; @Image3 and @Image4 show the secondary character.')
+  self.assertEqual(seedance_bridge.reference_roles(0,2),'@Image1 and @Image2 show the secondary character.')
+
+ def test_kie_draft_sends_every_reference_image(self):
+  with tempfile.TemporaryDirectory() as d:
+   p=Path(d);mesh_job(p)
+   for name in ['sirio-2.png','tein-1.png']:Image.new('RGB',(400,600),'gray').save(p/name)
+   created=Mock(return_value={'code':200,'data':{'taskId':'t'}})
+   with patch('mask_review.require_approved'),patch('seedance_bridge.seedance_provider',return_value='kie'),patch('seedance_bridge.credential',return_value='test'),patch('seedance_bridge.setting',return_value=''),patch('seedance_bridge.upload',side_effect=lambda path:'https://cdn.example.com/'+Path(path).name),patch('kie_api.create',created):
+    seedance_bridge.submit(p,'Replace',[p/'sirio-reference.png',p/'sirio-2.png'],[p/'tein-1.png'])
+   inp=created.call_args.args[0]['input']
+   self.assertEqual(inp['reference_image_urls'],['https://cdn.example.com/sirio-reference.png','https://cdn.example.com/sirio-2.png','https://cdn.example.com/tein-1.png'])
+   self.assertIn('@Image1 and @Image2 show the primary character; @Image3 is the secondary character reference.',inp['prompt'])
+
 class RetryTests(unittest.TestCase):
  def test_failed_draft_can_be_sent_again_but_pending_cannot(self):
   with tempfile.TemporaryDirectory() as d:
@@ -84,7 +101,7 @@ class RetryTests(unittest.TestCase):
    for x in patches:x.start()
    try:
     (p/'provider-status.json').write_text(json.dumps({'state':'generating'}))
-    with self.assertRaisesRegex(ValueError,'already has a provider response'):seedance_bridge.submit(p,'Replace',p/'sirio-reference.png')
+    with self.assertRaisesRegex(ValueError,'ya tiene una solicitud'):seedance_bridge.submit(p,'Replace',p/'sirio-reference.png')
     (p/'provider-status.json').write_text(json.dumps({'state':'fail','failMsg':'File processing failed'}))
     self.assertEqual(seedance_bridge.submit(p,'Replace',p/'sirio-reference.png'),'new')
    finally:
@@ -99,7 +116,7 @@ class ConformTests(unittest.TestCase):
    src=Path(d)/'in.mp4';make_video(src,960,540,4)
    self.assertEqual(kie_api.conform_video(src,Path(d)/'out.mp4'),src)
    short=Path(d)/'short.mp4';make_video(short,960,540,3)
-   with self.assertRaisesRegex(ValueError,'4–30 seconds'):kie_api.conform_video(short,Path(d)/'x.mp4')
+   with self.assertRaisesRegex(ValueError,'4 a 30 segundos'):kie_api.conform_video(short,Path(d)/'x.mp4')
 
  def test_small_low_fps_video_is_scaled_and_retimed(self):
   with tempfile.TemporaryDirectory() as d:
@@ -120,7 +137,7 @@ class ConformTests(unittest.TestCase):
    out=kie_api.conform_image(small,Path(d)/'out.jpg')
    with Image.open(out) as im:self.assertGreaterEqual(min(im.size),300);self.assertEqual(im.format,'JPEG')
    wide=Path(d)/'wide.png';Image.new('RGB',(1200,400)).save(wide)
-   with self.assertRaisesRegex(ValueError,'aspect'):kie_api.conform_image(wide,Path(d)/'x.jpg')
+   with self.assertRaisesRegex(ValueError,'proporción'):kie_api.conform_image(wide,Path(d)/'x.jpg')
 
 class KieStorageTests(unittest.TestCase):
  def test_kie_media_host_uploads_to_kie_storage(self):

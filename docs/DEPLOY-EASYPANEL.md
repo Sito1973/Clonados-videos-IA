@@ -71,7 +71,7 @@ Pulsa **Deploy**. La primera construcción tarda varios minutos, porque instala 
 
 1. Sube tu video. Si dura más de 30 segundos, o solo quieres una parte, elige el tramo en **Inicio** y **Fin** (con el reproductor y el botón **Usar el momento actual**). Para la primera prueba usa de 5 a 10 segundos con **una sola persona centrada** y voz clara. Elige **Rápido · Malla facial** y pulsa **Preparar video**. Esto cobra la separación de voz.
 2. Revisa el video preparado completo: la malla facial debe estar bien alineada en todos los fotogramas. Escucha también la voz. Después marca la casilla y pulsa **Aprobar**.
-3. Sube las imágenes de tu personaje. Puedes subir varias por personaje (por ejemplo, la cara de frente y el cuerpo entero) y la app te muestra qué etiqueta tiene cada una: **@Image1**, **@Image2**… Úsalas en el prompt para indicar a quién reemplaza cada referencia. Revisa el prompt y pulsa **Crear borrador**. kie.ai genera un borrador a 480p.
+3. Sube las fotos de tus personajes: **hasta 3 por personaje**, por ejemplo la cara de frente, otro ángulo y el cuerpo entero. Pulsa **+ Añadir foto** para añadirlas de una en una (o elige varias a la vez) y quita cualquiera con la **×**. En el Personaje 1 puedes usar un video en lugar de fotos. La app muestra la etiqueta de cada foto: **@Image1**, **@Image2**… Úsalas en el prompt para indicar a quién reemplaza cada referencia. Revisa el prompt y pulsa **Crear borrador**. kie.ai genera un borrador a 480p.
 4. Si te gusta, pulsa **Aprobar y generar 1080p**. kie.ai completa ese mismo borrador a 1080p, y se cobra aparte.
 
 El video final siempre lleva el **audio original completo**. El audio generado se descarta.

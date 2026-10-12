@@ -59,7 +59,7 @@ The included `Dockerfile` runs the app on a server behind your own HTTPS domain:
 - **Provider callbacks** on the same domain; no cloudflared tunnel needed.
 - **kie.ai** as an alternative provider: `SEEDANCE_PROVIDER=kie` uses Seedance 2.5 (480p draft, then the approved draft at 1080p) and `AUDIO_SEPARATION=kie` replaces Demucs. Depth and SAM 3 modes still need a Replicate token; Fast · Face mesh does not.
 
-The interface is in Spanish. Uploads can be trimmed to the part you want before preparation, and each character accepts several reference images (shown with their @Image tags for the prompt).
+The interface is in Spanish. Uploads can be trimmed to the part you want before preparation, and each character accepts up to three reference photos, added one at a time or together and shown with their @Image tags for the prompt.
 
 Step-by-step EasyPanel guide (Spanish): [docs/DEPLOY-EASYPANEL.md](docs/DEPLOY-EASYPANEL.md). API details: [docs/KIE-API.md](docs/KIE-API.md).
 
